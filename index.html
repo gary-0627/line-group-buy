@@ -10,7 +10,7 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>LINE 團購</title>
+  <title>天增團購系統 - LINE</title>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
@@ -20,7 +20,7 @@
 
   <h1>LINE 團購系統</h1>
 
-  <p id="status">LIFF 初始化中...</p>
+  <p id="status">LINE 登入中...</p>
 
   <script>
 
@@ -29,20 +29,35 @@
     async function init() {
 
       try {
-
+        
         await liff.init({
           liffId: LIFF_ID
         });
+        
+        if (!liff.isLoggedIn()) {
+  
+          liff.login();
+  
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          throw new Error('無法取得 LINE ID Token');
+        }
+
+        console.log('ID Token 已取得');
 
         document.getElementById('status').textContent =
-          'LIFF 初始化成功';
+          'LINE 登入成功';
 
       } catch (error) {
 
         console.error(error);
       
         document.getElementById('status').textContent =
-          'LIFF 初始化失敗';
+          'LINE 登入失敗';
       
       }
 
