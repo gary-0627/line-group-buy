@@ -1,17 +1,57 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
   <title>LINE 團購</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
 </head>
 
 <body>
 
   <h1>LINE 團購系統</h1>
 
-  <p id="status">網站載入中...</p>
+  <p id="status">LIFF 初始化中...</p>
+
+  <script>
+
+    const LIFF_ID = '你的 LIFF ID';
+
+    async function init() {
+
+      try {
+
+        await liff.init({
+          liffId: 2011633639-yuSTNpAR
+        });
+
+        document.getElementById('status').textContent =
+          'LIFF 初始化成功';
+
+      } catch (error) {
+
+        console.error(error);
+
+        document.getElementById('status').textContent =
+          'LIFF 初始化失敗';
+
+      }
+
+    }
+
+    init();
+
+  </script>
 
 </body>
+
 </html>
