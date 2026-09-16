@@ -24,100 +24,78 @@
 
   <script>
 
-    // =========================
-    // 基本設定
-    // =========================
-
     const LIFF_ID = '2011633639-yuSTNpAR';
 
     const API_URL =
       'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
 
-
-    // =========================
-    // LIFF 初始化
-    // =========================
-
     async function init() {
-
       try {
-
-        // 1. 初始化 LIFF
-        await liff.init({
-          liffId: LIFF_ID
-        });
-
+        await liff.init({ liffId: LIFF_ID });
+    
         console.log('LIFF 初始化成功');
-
-        // 2. 確認 LINE 登入狀態
+        console.log('LIFF logged in:', liff.isLoggedIn());
+    
         if (!liff.isLoggedIn()) {
-
           console.log('尚未登入 LINE，開始登入');
-
           liff.login();
-
           return;
         }
-
-        // 3. 取得 LINE ID Token
+    
         const idToken = liff.getIDToken();
-
+    
+        console.log('ID Token exists:', !!idToken);
+        console.log('ID Token:', idToken);
+    
         if (!idToken) {
-          throw new Error('無法取得 LINE ID Token');
+          throw new Error('無法取得 LINE ID Token，請確認 LIFF Scope 是否包含 openid');
         }
-
-        console.log('LINE ID Token 已取得');
-
-        // 4. 將 ID Token 傳給 Google Apps Script
+    
         const response = await fetch(API_URL, {
-
           method: 'POST',
-
           headers: {
             'Content-Type': 'text/plain;charset=utf-8'
           },
-
           body: JSON.stringify({
             action: 'verifyIdentity',
             idToken: idToken
           })
-
         });
-
-        // 5. 取得 GAS 回應
+    
         const result = await response.json();
-
+    
         console.log('GAS 回應：', result);
-
-        // 6. 判斷身份驗證結果
+        console.log('GAS success:', result.success);
+        console.log('GAS user:', result.user);
+    
         if (!result.success) {
-
           throw new Error(
-            result.message || 'LINE 身份驗證失敗'
+            result.message ||
+            result.error ||
+            'LINE 身份驗證失敗'
           );
-
         }
-
-        // 7. 驗證成功
+    
+        if (!result.user) {
+          throw new Error('GAS 驗證成功，但沒有回傳 user 資料');
+        }
+    
         const user = result.user;
-
+    
         document.getElementById('status').textContent =
-          'LINE 登入成功，您好 ' + user.displayName;
-
+          'LINE 登入成功，您好 ' + (user.displayName || 'LINE 使用者');
+    
         console.log('LINE User ID:', user.userId);
         console.log('LINE Name:', user.displayName);
-
+    
       } catch (error) {
-
         console.error('錯誤：', error);
-
+    
         document.getElementById('status').textContent =
           'LINE 登入失敗：' + error.message;
-
       }
-
     }
-
+    
     init();
 
   </script>
