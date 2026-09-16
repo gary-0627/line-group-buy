@@ -24,14 +24,14 @@
 
   <script>
 
-    const LIFF_ID = '你的 LIFF ID';
+    const LIFF_ID = '2011633639-yuSTNpAR';
 
     async function init() {
 
       try {
 
         await liff.init({
-          liffId: 2011633639-yuSTNpAR
+          liffId: LIFF_ID
         });
 
         document.getElementById('status').textContent =
@@ -39,10 +39,10 @@
 
       } catch (error) {
 
-        console.error('LIFF ERROR:', error);
+        console.error(error);
       
         document.getElementById('status').textContent =
-          'LIFF 初始化失敗：' + error.message;
+          'LIFF 初始化失敗';
       
       }
 
