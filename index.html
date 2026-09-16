@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
+
   <meta charset="UTF-8">
 
   <meta
@@ -13,6 +15,7 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
+
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -56,6 +59,10 @@
       padding: 16px;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     .header {
       margin-bottom: 16px;
     }
@@ -78,10 +85,6 @@
       padding: 20px;
       margin-bottom: 16px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-
-    .hidden {
-      display: none !important;
     }
 
     .loading {
@@ -275,6 +278,10 @@
       text-align: left;
     }
 
+    .menu-button:active {
+      background: #eee;
+    }
+
     .menu-button strong {
       display: block;
       font-size: 16px;
@@ -314,7 +321,7 @@
 
     .status {
       display: inline-block;
-      margin-top: 14px;
+      margin-bottom: 14px;
       padding: 5px 10px;
       border-radius: 999px;
       font-size: 13px;
@@ -358,6 +365,10 @@
       background: #eee;
       font-size: 24px;
       font-weight: 600;
+    }
+
+    .quantity-btn:disabled {
+      opacity: 0.45;
     }
 
     .quantity-value {
@@ -411,6 +422,34 @@
       word-break: break-all;
     }
 
+    .order-success-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #e8f5e9;
+      color: #2e7d32;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .order-success-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .order-success-subtitle {
+      text-align: center;
+      color: #777;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
     .debug {
       margin-top: 20px;
       padding: 12px;
@@ -425,6 +464,7 @@
     }
 
     @media (max-width: 480px) {
+
       .app {
         padding: 12px;
       }
@@ -441,30 +481,57 @@
       .admin-menu {
         grid-template-columns: 1fr;
       }
+
     }
+
   </style>
+
 </head>
+
 
 <body>
 
 <div class="app">
 
-  <!-- =========================
+
+  <!-- =========================================
        Loading
-  ========================== -->
-  <div id="loadingPage" class="card loading">
+  ========================================== -->
+
+  <div
+    id="loadingPage"
+    class="card loading"
+  >
+
     <div class="loading-spinner"></div>
-    <div id="loadingText">正在連線 LINE...</div>
+
+    <div id="loadingText">
+      正在連線 LINE...
+    </div>
+
   </div>
 
 
-  <!-- =========================
+  <!-- =========================================
        Error
-  ========================== -->
-  <div id="errorPage" class="hidden">
+  ========================================== -->
+
+  <div
+    id="errorPage"
+    class="hidden"
+  >
+
     <div class="error-box">
-      <strong>發生錯誤</strong>
-      <div id="errorMessage" style="margin-top: 6px;"></div>
+
+      <strong>
+        發生錯誤
+      </strong>
+
+      <div
+        id="errorMessage"
+        style="margin-top: 6px;"
+      ></div>
+
     </div>
 
     <button
@@ -473,45 +540,79 @@
     >
       重新載入
     </button>
+
   </div>
 
 
-  <!-- =========================
-       Admin Page
-  ========================== -->
-  <div id="adminPage" class="hidden">
+  <!-- =========================================
+       Admin
+  ========================================== -->
+
+  <div
+    id="adminPage"
+    class="hidden"
+  >
 
     <div class="header">
-      <h1>LINE 團購管理</h1>
-      <p>管理商品、建立團購連結</p>
+
+      <h1>
+        LINE 團購管理
+      </h1>
+
+      <p>
+        管理商品、建立團購連結
+      </p>
+
     </div>
 
-    <!-- 使用者 -->
+
+    <!-- Admin User -->
+
     <div class="card">
+
       <div class="user-card">
-        <div id="adminAvatar" class="avatar">
+
+        <div
+          id="adminAvatar"
+          class="avatar"
+        >
           ?
         </div>
 
         <div>
-          <div id="adminDisplayName" class="user-name">
+
+          <div
+            id="adminDisplayName"
+            class="user-name"
+          >
             LINE 使用者
           </div>
 
-          <div id="adminRole" class="user-role">
+          <div
+            id="adminRole"
+            class="user-role"
+          >
             管理員
           </div>
+
         </div>
+
       </div>
+
     </div>
 
 
-    <!-- 管理選單 -->
-    <div id="adminHomeCard" class="card">
+    <!-- Admin Home -->
+
+    <div
+      id="adminHomeCard"
+      class="card"
+    >
 
       <h2 class="section-title">
         管理功能
       </h2>
+
 
       <div class="admin-menu">
 
@@ -519,32 +620,63 @@
           class="menu-button"
           onclick="showCreateProduct()"
         >
-          <strong>＋ 新增團購</strong>
-          <span>建立新的商品與團購連結</span>
+
+          <strong>
+            ＋ 新增團購
+          </strong>
+
+          <span>
+            建立新的商品與團購連結
+          </span>
+
         </button>
+
 
         <button
           class="menu-button"
           onclick="showComingSoon('我的團購')"
         >
-          <strong>📦 我的團購</strong>
-          <span>查看與管理目前團購</span>
+
+          <strong>
+            📦 我的團購
+          </strong>
+
+          <span>
+            查看與管理目前團購
+          </span>
+
         </button>
+
 
         <button
           class="menu-button"
           onclick="showComingSoon('所有訂單')"
         >
-          <strong>📋 所有訂單</strong>
-          <span>查看所有客戶訂單</span>
+
+          <strong>
+            📋 所有訂單
+          </strong>
+
+          <span>
+            查看所有客戶訂單
+          </span>
+
         </button>
+
 
         <button
           class="menu-button"
-          onclick="showComingSoon('管理員設定')"
+          onclick="showComingSoon('系統管理')"
         >
-          <strong>⚙️ 系統管理</strong>
-          <span>管理員與系統設定</span>
+
+          <strong>
+            ⚙️ 系統管理
+          </strong>
+
+          <span>
+            管理員與系統設定
+          </span>
+
         </button>
 
       </div>
@@ -552,18 +684,26 @@
     </div>
 
 
-    <!-- 新增團購 -->
-    <div id="createProductCard" class="card hidden">
+    <!-- Create Product -->
+
+    <div
+      id="createProductCard"
+      class="card hidden"
+    >
 
       <h2 class="section-title">
         新增團購
       </h2>
 
+
       <div id="createProductMessage"></div>
 
+
       <div class="form-group">
+
         <label class="form-label">
-          商品名稱 <span class="required">*</span>
+          商品名稱
+          <span class="required">*</span>
         </label>
 
         <input
@@ -572,14 +712,17 @@
           placeholder="例如：日本麝香葡萄"
           maxlength="100"
         >
+
       </div>
 
 
       <div class="form-row">
 
         <div class="form-group">
+
           <label class="form-label">
-            商品價格 <span class="required">*</span>
+            商品價格
+            <span class="required">*</span>
           </label>
 
           <input
@@ -589,10 +732,12 @@
             step="1"
             placeholder="例如：1200"
           >
+
         </div>
 
 
         <div class="form-group">
+
           <label class="form-label">
             最大訂購數量
           </label>
@@ -604,6 +749,7 @@
             step="1"
             placeholder="0 = 不限"
           >
+
         </div>
 
       </div>
@@ -612,26 +758,32 @@
       <div class="form-row">
 
         <div class="form-group">
+
           <label class="form-label">
-            開始時間 <span class="required">*</span>
+            開始時間
+            <span class="required">*</span>
           </label>
 
           <input
             id="productStartAt"
             type="datetime-local"
           >
+
         </div>
 
 
         <div class="form-group">
+
           <label class="form-label">
-            截止時間 <span class="required">*</span>
+            截止時間
+            <span class="required">*</span>
           </label>
 
           <input
             id="productEndAt"
             type="datetime-local"
           >
+
         </div>
 
       </div>
@@ -660,6 +812,7 @@
         建立團購
       </button>
 
+
       <button
         class="btn btn-secondary"
         onclick="showAdminHome()"
@@ -670,18 +823,25 @@
     </div>
 
 
-    <!-- 建立成功 -->
-    <div id="createdProductCard" class="card hidden">
+    <!-- Created Product -->
+
+    <div
+      id="createdProductCard"
+      class="card hidden"
+    >
 
       <h2 class="section-title">
         團購建立成功
       </h2>
 
+
       <div class="success-box">
         團購已成功建立。
       </div>
 
+
       <div class="result-item">
+
         <div class="result-label">
           商品名稱
         </div>
@@ -690,10 +850,12 @@
           id="createdProductName"
           class="result-value"
         ></div>
+
       </div>
 
 
       <div class="result-item">
+
         <div class="result-label">
           Product ID
         </div>
@@ -702,10 +864,12 @@
           id="createdProductId"
           class="result-value"
         ></div>
+
       </div>
 
 
       <div class="result-item">
+
         <div class="result-label">
           狀態
         </div>
@@ -714,6 +878,7 @@
           id="createdProductStatus"
           class="result-value"
         ></div>
+
       </div>
 
 
@@ -731,6 +896,7 @@
         複製團購連結
       </button>
 
+
       <button
         class="btn btn-line"
         onclick="shareProductLink()"
@@ -738,12 +904,14 @@
         分享到 LINE
       </button>
 
+
       <button
         class="btn btn-secondary"
         onclick="openCreatedProduct()"
       >
         開啟團購頁
       </button>
+
 
       <button
         class="btn btn-secondary"
@@ -757,27 +925,43 @@
   </div>
 
 
-  <!-- =========================
-       Customer Product Page
-  ========================== -->
-  <div id="productPage" class="hidden">
+  <!-- =========================================
+       Customer Product
+  ========================================== -->
+
+  <div
+    id="productPage"
+    class="hidden"
+  >
 
     <div class="header">
-      <h1>團購訂購</h1>
-      <p>請確認商品資訊後送出訂單</p>
+
+      <h1>
+        團購訂購
+      </h1>
+
+      <p>
+        請確認商品資訊後送出訂單
+      </p>
+
     </div>
 
 
-    <!-- 使用者 -->
+    <!-- Customer -->
+
     <div class="card">
 
       <div class="user-card">
 
-        <div id="customerAvatar" class="avatar">
+        <div
+          id="customerAvatar"
+          class="avatar"
+        >
           ?
         </div>
 
         <div>
+
           <div
             id="customerDisplayName"
             class="user-name"
@@ -788,6 +972,7 @@
           <div class="user-role">
             LINE 登入
           </div>
+
         </div>
 
       </div>
@@ -795,10 +980,12 @@
     </div>
 
 
-    <!-- 商品 -->
+    <!-- Product -->
+
     <div class="card">
 
       <div id="productStatus"></div>
+
 
       <h2
         id="productName"
@@ -830,7 +1017,8 @@
     </div>
 
 
-    <!-- 訂購 -->
+    <!-- Order -->
+
     <div
       id="orderCard"
       class="card"
@@ -895,6 +1083,7 @@
         送出訂單
       </button>
 
+
       <button
         class="btn btn-secondary"
         onclick="openMyOrders()"
@@ -905,20 +1094,26 @@
     </div>
 
 
-    <!-- 關閉狀態 -->
+    <!-- Closed -->
+
     <div
       id="closedProductCard"
       class="card hidden"
     >
 
       <div class="info-box">
-        <strong>本團購目前無法訂購</strong>
+
+        <strong>
+          本團購目前無法訂購
+        </strong>
 
         <div
           id="closedProductMessage"
           style="margin-top: 6px;"
         ></div>
+
       </div>
+
 
       <button
         class="btn btn-secondary"
@@ -932,25 +1127,144 @@
   </div>
 
 
-  <!-- =========================
+  <!-- =========================================
+       Order Success
+  ========================================== -->
+
+  <div
+    id="orderSuccessPage"
+    class="hidden"
+  >
+
+    <div class="card">
+
+      <div class="order-success-icon">
+        ✓
+      </div>
+
+
+      <div class="order-success-title">
+        訂單建立成功
+      </div>
+
+
+      <div class="order-success-subtitle">
+        已成功收到你的團購訂單
+      </div>
+
+
+      <div class="result-item">
+
+        <div class="result-label">
+          訂單編號
+        </div>
+
+        <div
+          id="successOrderId"
+          class="result-value"
+        ></div>
+
+      </div>
+
+
+      <div class="result-item">
+
+        <div class="result-label">
+          商品
+        </div>
+
+        <div
+          id="successProductName"
+          class="result-value"
+        ></div>
+
+      </div>
+
+
+      <div class="result-item">
+
+        <div class="result-label">
+          數量
+        </div>
+
+        <div
+          id="successQuantity"
+          class="result-value"
+        ></div>
+
+      </div>
+
+
+      <div class="result-item">
+
+        <div class="result-label">
+          金額
+        </div>
+
+        <div
+          id="successTotalPrice"
+          class="result-value"
+        ></div>
+
+      </div>
+
+
+      <button
+        class="btn btn-primary"
+        style="margin-top: 18px;"
+        onclick="openMyOrders()"
+      >
+        查看我的訂單
+      </button>
+
+
+      <button
+        class="btn btn-secondary"
+        onclick="closeLiff()"
+      >
+        關閉
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================
        My Orders
-  ========================== -->
-  <div id="myOrdersPage" class="hidden">
+  ========================================== -->
+
+  <div
+    id="myOrdersPage"
+    class="hidden"
+  >
 
     <div class="header">
-      <h1>我的訂單</h1>
-      <p>查看目前使用 LINE 帳號建立的訂單</p>
+
+      <h1>
+        我的訂單
+      </h1>
+
+      <p>
+        查看目前 LINE 帳號建立的訂單
+      </p>
+
     </div>
+
 
     <div class="card">
 
       <div class="user-card">
 
-        <div id="ordersAvatar" class="avatar">
+        <div
+          id="ordersAvatar"
+          class="avatar"
+        >
           ?
         </div>
 
         <div>
+
           <div
             id="ordersDisplayName"
             class="user-name"
@@ -961,52 +1275,70 @@
           <div class="user-role">
             我的訂單
           </div>
+
         </div>
 
       </div>
 
     </div>
 
+
     <div
       id="ordersContent"
       class="card"
     >
-      <div class="loading">
-        載入訂單中...
+
+      <div class="info-box">
+        我的訂單 API 下一階段接入。
       </div>
+
+
+      <button
+        class="btn btn-secondary"
+        onclick="goBackFromOrders()"
+      >
+        返回
+      </button>
+
     </div>
 
   </div>
 
 
-  <!-- =========================
-       Debug
-  ========================== -->
+  <!-- Debug -->
+
   <div
     id="debug"
     class="debug hidden"
   ></div>
+
 
 </div>
 
 
 <script>
 
+
   /*************************************************
-   * 設定
+   * CONFIG
    *************************************************/
 
-  const LIFF_ID = '2011633639-yuSTNpAR';
+  const LIFF_ID =
+    '2011633639-yuSTNpAR';
 
-  // ================================================
-  // 把這裡換成你的 GAS Web App URL
-  // ================================================
 
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
+  /*
+   * ================================================
+   * 請修改這裡
+   * ================================================
+   */
+
+  const API_URL =
+    'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
 
 
   /*************************************************
-   * 全域狀態
+   * STATE
    *************************************************/
 
   let idToken = null;
@@ -1025,74 +1357,96 @@
 
 
   /*************************************************
-   * 初始化
+   * INIT
    *************************************************/
 
   async function init() {
 
     try {
 
-      showLoading('正在初始化 LINE...');
+      showLoading(
+        '正在初始化 LINE...'
+      );
+
 
       await liff.init({
         liffId: LIFF_ID
       });
 
-      debugLog('LIFF 初始化成功');
+
+      debugLog(
+        'LIFF 初始化成功'
+      );
 
 
       if (!liff.isLoggedIn()) {
 
-        showLoading('正在登入 LINE...');
+        showLoading(
+          '正在登入 LINE...'
+        );
+
 
         liff.login();
 
         return;
+
       }
 
 
-      showLoading('正在取得 LINE 身分...');
+      showLoading(
+        '正在取得 LINE 身分...'
+      );
 
-      idToken = liff.getIDToken();
+
+      idToken =
+        liff.getIDToken();
+
 
       if (!idToken) {
+
         throw new Error(
           '無法取得 LINE ID Token，請確認 LIFF 已啟用 openid scope。'
         );
+
       }
 
-      debugLog('取得 ID Token 成功');
+
+      debugLog(
+        'ID Token 取得成功'
+      );
+
+
+      currentProductId =
+        getProductIdFromUrl();
 
 
       /*
-       * 先從 URL 判斷目前是：
+       * 有 productId
+       * → 客戶
        *
-       * ?p=PRODUCT_ID
-       *
-       * 有 p → 客戶商品頁
-       *
-       * 沒有 p → 管理員入口
+       * 沒有
+       * → 管理員
        */
-
-      currentProductId = getProductIdFromUrl();
-
 
       if (currentProductId) {
 
         await initCustomer();
 
-      } else {
+      }
+      else {
 
         await initAdmin();
 
       }
 
-    } catch (error) {
+    }
+    catch (error) {
 
       console.error(error);
 
       showError(
-        error.message || String(error)
+        error.message ||
+        String(error)
       );
 
     }
@@ -1101,73 +1455,102 @@
 
 
   /*************************************************
-   * 客戶初始化
+   * CUSTOMER INIT
    *************************************************/
 
   async function initCustomer() {
 
-    showLoading('正在驗證 LINE 身分...');
+    showLoading(
+      '正在驗證 LINE 身分...'
+    );
 
 
-    const result = await apiRequest({
-      action: 'verifyIdentity',
-      idToken: idToken
-    });
+    const result =
+      await apiRequest({
+
+        action:
+          'verifyIdentity',
+
+        idToken:
+          idToken
+
+      });
 
 
     if (!result.success) {
 
       throw new Error(
-        result.message || 'LINE 身分驗證失敗'
+        result.message ||
+        'LINE 身分驗證失敗'
       );
 
     }
 
 
-    currentUser = result.user;
+    currentUser =
+      result.user;
 
 
     setCustomerUserInfo();
 
 
-    showLoading('正在載入團購商品...');
+    showLoading(
+      '正在載入團購商品...'
+    );
 
 
-    await loadProduct(currentProductId);
+    await loadProduct(
+      currentProductId
+    );
 
   }
 
 
   /*************************************************
-   * 管理員初始化
+   * ADMIN INIT
    *************************************************/
 
   async function initAdmin() {
 
-    showLoading('正在確認管理員權限...');
+    showLoading(
+      '正在確認管理員權限...'
+    );
 
 
-    const result = await apiRequest({
-      action: 'verifyAdmin',
-      idToken: idToken
-    });
+    const result =
+      await apiRequest({
+
+        action:
+          'verifyAdmin',
+
+        idToken:
+          idToken
+
+      });
 
 
     if (!result.success) {
 
       throw new Error(
-        result.message || '管理員驗證失敗'
+        result.message ||
+        '管理員驗證失敗'
       );
 
     }
 
 
-    currentUser = result.user;
+    currentUser =
+      result.user;
 
-    currentAdmin = result.admin;
+
+    currentAdmin =
+      result.admin;
 
 
-    if (!currentAdmin || !currentAdmin.isAdmin) {
+    if (
+      !currentAdmin ||
+      !currentAdmin.isAdmin
+    ) {
 
       throw new Error(
         '此 LINE 帳號沒有管理員權限。'
@@ -1185,20 +1568,25 @@
 
 
   /*************************************************
-   * URL Product ID
+   * PRODUCT ID
    *************************************************/
 
   function getProductIdFromUrl() {
 
-    const params = new URLSearchParams(
-      window.location.search
-    );
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
-    const productId = params.get('p');
+
+    const productId =
+      params.get('p');
+
 
     if (!productId) {
       return null;
     }
+
 
     return productId.trim();
 
@@ -1206,29 +1594,42 @@
 
 
   /*************************************************
-   * API Request
+   * API
    *************************************************/
 
   async function apiRequest(payload) {
 
     debugLog(
       'API Request:\n' +
-      JSON.stringify(payload, null, 2)
+      JSON.stringify(
+        payload,
+        null,
+        2
+      )
     );
 
 
-    const response = await fetch(
-      API_URL,
-      {
-        method: 'POST',
+    const response =
+      await fetch(
+        API_URL,
+        {
 
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
+          method:
+            'POST',
 
-        body: JSON.stringify(payload)
-      }
-    );
+          headers:
+            {
+              'Content-Type':
+                'text/plain;charset=utf-8'
+            },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+
+        }
+      );
 
 
     if (!response.ok) {
@@ -1241,7 +1642,8 @@
     }
 
 
-    const text = await response.text();
+    const text =
+      await response.text();
 
 
     debugLog(
@@ -1252,24 +1654,20 @@
 
     let result;
 
+
     try {
 
-      result = JSON.parse(text);
+      result =
+        JSON.parse(
+          text
+        );
 
-    } catch (error) {
+    }
+    catch (error) {
 
       throw new Error(
         'API 回傳不是有效 JSON：' +
         text
-      );
-
-    }
-
-
-    if (!result) {
-
-      throw new Error(
-        'API 沒有回傳資料'
       );
 
     }
@@ -1281,18 +1679,23 @@
 
 
   /*************************************************
-   * 載入商品
+   * LOAD PRODUCT
    *************************************************/
 
-  async function loadProduct(productId) {
+  async function loadProduct(
+    productId
+  ) {
 
-    const result = await apiRequest({
+    const result =
+      await apiRequest({
 
-      action: 'getProduct',
+        action:
+          'getProduct',
 
-      productId: productId
+        productId:
+          productId
 
-    });
+      });
 
 
     if (!result.success) {
@@ -1305,7 +1708,8 @@
     }
 
 
-    currentProduct = result.product;
+    currentProduct =
+      result.product;
 
 
     renderProduct(
@@ -1315,95 +1719,113 @@
 
     hideLoading();
 
-    showPage('productPage');
+
+    showPage(
+      'productPage'
+    );
 
   }
 
 
   /*************************************************
-   * 商品頁 Render
+   * RENDER PRODUCT
    *************************************************/
 
-  function renderProduct(product) {
+  function renderProduct(
+    product
+  ) {
 
     document.getElementById(
       'productName'
     ).textContent =
-      product.productName || '未命名商品';
+      product.productName ||
+      '未命名商品';
 
 
     document.getElementById(
       'productPrice'
     ).textContent =
-      formatMoney(product.price);
+      formatMoney(
+        product.price
+      );
 
 
     document.getElementById(
       'productDescription'
     ).textContent =
-      product.description || '';
+      product.description ||
+      '';
 
 
     /*
-     * 狀態
+     * Status
      */
 
-    const statusElement =
+    const statusContainer =
       document.getElementById(
         'productStatus'
       );
 
 
-    statusElement.innerHTML = '';
+    statusContainer.innerHTML =
+      '';
 
 
-    const statusBadge =
-      document.createElement('span');
+    const badge =
+      document.createElement(
+        'span'
+      );
 
 
-    statusBadge.className =
+    badge.className =
       'status';
 
 
-    if (product.status === 'OPEN') {
+    if (
+      product.status ===
+      'OPEN'
+    ) {
 
-      statusBadge.classList.add(
+      badge.classList.add(
         'status-open'
       );
 
-      statusBadge.textContent =
+      badge.textContent =
         '🟢 開放訂購';
 
-    } else if (
-      product.status === 'DRAFT'
+    }
+    else if (
+      product.status ===
+      'DRAFT'
     ) {
 
-      statusBadge.classList.add(
+      badge.classList.add(
         'status-draft'
       );
 
-      statusBadge.textContent =
+      badge.textContent =
         '🟡 尚未開始';
 
-    } else {
+    }
+    else {
 
-      statusBadge.classList.add(
+      badge.classList.add(
         'status-closed'
       );
 
-      statusBadge.textContent =
+      badge.textContent =
         '⚪ 已截止';
 
     }
 
 
-    statusElement.appendChild(
-      statusBadge
+    statusContainer.appendChild(
+      badge
     );
 
 
     /*
-     * 截止時間
+     * Deadline
      */
 
     const deadline =
@@ -1420,15 +1842,17 @@
           product.endAt
         );
 
-    } else {
+    }
+    else {
 
-      deadline.textContent = '';
+      deadline.textContent =
+        '';
 
     }
 
 
     /*
-     * 訂購區
+     * Order Area
      */
 
     const orderCard =
@@ -1443,44 +1867,54 @@
       );
 
 
-    if (product.status === 'OPEN') {
+    if (
+      product.status ===
+      'OPEN'
+    ) {
 
       orderCard.classList.remove(
         'hidden'
       );
 
+
       closedCard.classList.add(
         'hidden'
       );
 
+
       enableOrderControls();
 
-
-    } else {
+    }
+    else {
 
       orderCard.classList.add(
         'hidden'
       );
+
 
       closedCard.classList.remove(
         'hidden'
       );
 
 
-      const closedMessage =
+      const message =
         document.getElementById(
           'closedProductMessage'
         );
 
 
-      if (product.status === 'DRAFT') {
+      if (
+        product.status ===
+        'DRAFT'
+      ) {
 
-        closedMessage.textContent =
+        message.textContent =
           '本團購尚未開始。';
 
-      } else {
+      }
+      else {
 
-        closedMessage.textContent =
+        message.textContent =
           '本團購已截止，目前無法新增訂單。';
 
       }
@@ -1488,7 +1922,9 @@
     }
 
 
-    currentQuantity = 1;
+    currentQuantity =
+      1;
+
 
     updateQuantityUI();
 
@@ -1496,73 +1932,83 @@
 
 
   /*************************************************
-   * 啟用訂購控制
+   * ORDER CONTROL
    *************************************************/
 
   function enableOrderControls() {
 
     document.getElementById(
       'submitOrderButton'
-    ).disabled = false;
+    ).disabled =
+      false;
 
 
     document.getElementById(
       'decreaseQuantityButton'
-    ).disabled = false;
+    ).disabled =
+      false;
 
 
     document.getElementById(
       'increaseQuantityButton'
-    ).disabled = false;
+    ).disabled =
+      false;
 
   }
 
 
   /*************************************************
-   * 數量
+   * QUANTITY
    *************************************************/
 
-  function changeQuantity(delta) {
+  function changeQuantity(
+    delta
+  ) {
 
     if (!currentProduct) {
       return;
     }
 
 
-    let nextQuantity =
-      currentQuantity + delta;
+    let quantity =
+      currentQuantity +
+      delta;
 
 
-    if (nextQuantity < 1) {
-      nextQuantity = 1;
+    if (quantity < 1) {
+
+      quantity = 1;
+
     }
 
 
     const maxQty =
       Number(
-        currentProduct.maxQty || 0
+        currentProduct.maxQty ||
+        0
       );
 
 
     /*
-     * 目前先把 maxQty 當成單筆數量上限。
+     * 這裡只是 UX 限制。
      *
-     * 真正 createOrder 時，
-     * 後端仍必須再次檢查整個團購的總量。
+     * 真正的總量限制仍然由 GAS
+     * createOrder 再檢查。
      */
 
     if (
       maxQty > 0 &&
-      nextQuantity > maxQty
+      quantity > maxQty
     ) {
 
-      nextQuantity = maxQty;
+      quantity =
+        maxQty;
 
     }
 
 
     currentQuantity =
-      nextQuantity;
+      quantity;
 
 
     updateQuantityUI();
@@ -1571,7 +2017,7 @@
 
 
   /*************************************************
-   * 更新數量 UI
+   * QUANTITY UI
    *************************************************/
 
   function updateQuantityUI() {
@@ -1582,39 +2028,67 @@
       currentQuantity;
 
 
-    if (currentProduct) {
-
-      const total =
-        Number(
-          currentProduct.price || 0
-        ) *
-        currentQuantity;
-
-
-      document.getElementById(
-        'totalPrice'
-      ).textContent =
-        '$' + formatMoney(total);
-
+    if (!currentProduct) {
+      return;
     }
+
+
+    const total =
+      Number(
+        currentProduct.price ||
+        0
+      ) *
+      currentQuantity;
+
+
+    document.getElementById(
+      'totalPrice'
+    ).textContent =
+      '$' +
+      formatMoney(
+        total
+      );
+
+
+    /*
+     * 減少按鈕
+     */
+
+    document.getElementById(
+      'decreaseQuantityButton'
+    ).disabled =
+      currentQuantity <= 1;
+
+
+    /*
+     * 最大數量
+     */
+
+    const maxQty =
+      Number(
+        currentProduct.maxQty ||
+        0
+      );
+
+
+    document.getElementById(
+      'increaseQuantityButton'
+    ).disabled =
+      maxQty > 0 &&
+      currentQuantity >= maxQty;
 
   }
 
 
   /*************************************************
-   * 暫時送出訂單
-   *
-   * 注意：
-   * 目前後端還沒有 createOrder。
-   * 這裡只做測試，不會真的寫入 Orders。
+   * CREATE ORDER
    *************************************************/
 
   async function submitOrder() {
 
     if (!currentProduct) {
 
-      showInlineError(
-        'orderCard',
+      alert(
         '商品資料尚未載入。'
       );
 
@@ -1623,7 +2097,10 @@
     }
 
 
-    if (currentProduct.status !== 'OPEN') {
+    if (
+      currentProduct.status !==
+      'OPEN'
+    ) {
 
       alert(
         '此團購目前無法訂購。'
@@ -1640,61 +2117,85 @@
       );
 
 
-    button.disabled = true;
+    button.disabled =
+      true;
+
 
     button.textContent =
-      '處理中...';
+      '送出中...';
 
 
     try {
-
-      /*
-       * 暫時測試資料
-       *
-       * 等 GAS createOrder 完成後，
-       * 再改成真正 API。
-       */
 
       const requestId =
         generateRequestId();
 
 
-      console.log({
-        action: 'createOrder',
-        idToken: idToken,
-        productId:
-          currentProduct.productId,
-        quantity:
-          currentQuantity,
-        requestId:
-          requestId
-      });
+      const result =
+        await apiRequest({
+
+          action:
+            'createOrder',
+
+          idToken:
+            idToken,
+
+          productId:
+            currentProduct.productId,
+
+          quantity:
+            currentQuantity,
+
+          /*
+           * 現階段還沒有商品規格。
+           * 下一階段再接 options。
+           */
+
+          options:
+            [],
+
+          requestId:
+            requestId
+
+        });
 
 
-      alert(
-        '目前前端測試完成。\n\n' +
-        '商品：' +
-        currentProduct.productName +
-        '\n' +
-        '數量：' +
-        currentQuantity +
-        '\n\n' +
-        '下一步再接 GAS createOrder。'
+      if (!result.success) {
+
+        throw new Error(
+          result.message ||
+          '訂單建立失敗'
+        );
+
+      }
+
+
+      /*
+       * 顯示訂單成功頁
+       */
+
+      showOrderSuccess(
+        result.order
       );
 
 
-    } catch (error) {
+    }
+    catch (error) {
 
       console.error(error);
+
 
       alert(
         error.message ||
         '送出訂單失敗'
       );
 
-    } finally {
+    }
+    finally {
 
-      button.disabled = false;
+      button.disabled =
+        false;
+
 
       button.textContent =
         '送出訂單';
@@ -1705,7 +2206,49 @@
 
 
   /*************************************************
-   * Request ID
+   * ORDER SUCCESS
+   *************************************************/
+
+  function showOrderSuccess(
+    order
+  ) {
+
+    document.getElementById(
+      'successOrderId'
+    ).textContent =
+      order.orderId;
+
+
+    document.getElementById(
+      'successProductName'
+    ).textContent =
+      order.productName;
+
+
+    document.getElementById(
+      'successQuantity'
+    ).textContent =
+      order.quantity;
+
+
+    document.getElementById(
+      'successTotalPrice'
+    ).textContent =
+      '$' +
+      formatMoney(
+        order.totalPrice
+      );
+
+
+    showPage(
+      'orderSuccessPage'
+    );
+
+  }
+
+
+  /*************************************************
+   * REQUEST ID
    *************************************************/
 
   function generateRequestId() {
@@ -1733,7 +2276,7 @@
 
 
   /*************************************************
-   * Admin: 新增團購
+   * CREATE PRODUCT
    *************************************************/
 
   async function createProduct() {
@@ -1742,15 +2285,6 @@
       document.getElementById(
         'createProductButton'
       );
-
-
-    const message =
-      document.getElementById(
-        'createProductMessage'
-      );
-
-
-    message.innerHTML = '';
 
 
     const productName =
@@ -1789,8 +2323,11 @@
       ).value.trim();
 
 
+    clearCreateProductMessage();
+
+
     /*
-     * 前端基本驗證
+     * Validation
      */
 
     if (!productName) {
@@ -1860,7 +2397,9 @@
     if (maxQtyRaw !== '') {
 
       maxQty =
-        Number(maxQtyRaw);
+        Number(
+          maxQtyRaw
+        );
 
 
       if (
@@ -1880,10 +2419,12 @@
 
 
     /*
-     * 開始建立
+     * Submit
      */
 
-    button.disabled = true;
+    button.disabled =
+      true;
+
 
     button.textContent =
       '建立中...';
@@ -1894,9 +2435,11 @@
       const result =
         await apiRequest({
 
-          action: 'createProduct',
+          action:
+            'createProduct',
 
-          idToken: idToken,
+          idToken:
+            idToken,
 
           product: {
 
@@ -1904,7 +2447,9 @@
               productName,
 
             price:
-              Number(priceRaw),
+              Number(
+                priceRaw
+              ),
 
             maxQty:
               maxQty,
@@ -1912,7 +2457,8 @@
             description:
               description,
 
-            options: [],
+            options:
+              [],
 
             startAt:
               startAt,
@@ -1935,13 +2481,13 @@
       }
 
 
-      /*
-       * 建立團購連結
-       */
-
       const product =
         result.product;
 
+
+      /*
+       * Product Link
+       */
 
       currentProductLink =
         window.location.origin +
@@ -1953,7 +2499,7 @@
 
 
       /*
-       * 顯示結果
+       * UI
        */
 
       document.getElementById(
@@ -1982,10 +2528,6 @@
         currentProductLink;
 
 
-      /*
-       * 切換畫面
-       */
-
       document.getElementById(
         'createProductCard'
       ).classList.add(
@@ -2007,25 +2549,25 @@
       );
 
 
-      /*
-       * 清空表單
-       */
-
       resetCreateProductForm();
 
-
-    } catch (error) {
+    }
+    catch (error) {
 
       console.error(error);
+
 
       showCreateError(
         error.message ||
         '建立團購失敗'
       );
 
-    } finally {
+    }
+    finally {
 
-      button.disabled = false;
+      button.disabled =
+        false;
+
 
       button.textContent =
         '建立團購';
@@ -2036,45 +2578,51 @@
 
 
   /*************************************************
-   * 清空新增商品表單
+   * RESET PRODUCT FORM
    *************************************************/
 
   function resetCreateProductForm() {
 
     document.getElementById(
       'productName'
-    ).value = '';
+    ).value =
+      '';
 
 
     document.getElementById(
       'productPrice'
-    ).value = '';
+    ).value =
+      '';
 
 
     document.getElementById(
       'productMaxQty'
-    ).value = '';
+    ).value =
+      '';
 
 
     document.getElementById(
       'productStartAt'
-    ).value = '';
+    ).value =
+      '';
 
 
     document.getElementById(
       'productEndAt'
-    ).value = '';
+    ).value =
+      '';
 
 
     document.getElementById(
       'productDescription'
-    ).value = '';
+    ).value =
+      '';
 
   }
 
 
   /*************************************************
-   * 顯示新增團購
+   * SHOW CREATE
    *************************************************/
 
   function showCreateProduct() {
@@ -2100,15 +2648,13 @@
     );
 
 
-    document.getElementById(
-      'createProductMessage'
-    ).innerHTML = '';
+    clearCreateProductMessage();
 
   }
 
 
   /*************************************************
-   * 返回管理首頁
+   * ADMIN HOME
    *************************************************/
 
   function showAdminHome() {
@@ -2137,7 +2683,7 @@
 
 
   /*************************************************
-   * 複製商品連結
+   * COPY LINK
    *************************************************/
 
   async function copyProductLink() {
@@ -2158,12 +2704,8 @@
         '團購連結已複製。'
       );
 
-    } catch (error) {
-
-      /*
-       * Clipboard API 失敗時，
-       * 使用傳統 fallback。
-       */
+    }
+    catch (error) {
 
       const textarea =
         document.createElement(
@@ -2189,11 +2731,13 @@
           'copy'
         );
 
+
         alert(
           '團購連結已複製。'
         );
 
-      } catch (copyError) {
+      }
+      catch (copyError) {
 
         alert(
           '無法自動複製，請手動複製連結。'
@@ -2212,66 +2756,102 @@
 
 
   /*************************************************
-   * 分享 LINE
+   * SHARE LINE
    *************************************************/
 
-  function shareProductLink() {
+  async function shareProductLink() {
 
     if (!currentProductLink) {
       return;
     }
 
 
+    const name =
+      document.getElementById(
+        'createdProductName'
+      ).textContent;
+
+
+    /*
+     * LINE Share Target Picker
+     */
+
     if (
       typeof liff !== 'undefined' &&
-      liff.isApiAvailable('shareTargetPicker')
+      liff.isApiAvailable(
+        'shareTargetPicker'
+      )
     ) {
 
-      liff.shareTargetPicker([
-        {
-          type: 'text',
-          text:
-            '團購商品：' +
-            (
-              document.getElementById(
-                'createdProductName'
-              ).textContent
-            ) +
-            '\n\n' +
-            currentProductLink
-        }
-      ]);
+      try {
 
-      return;
+        await liff.shareTargetPicker([
+
+          {
+
+            type:
+              'text',
+
+            text:
+              '團購商品：' +
+              name +
+              '\n\n' +
+              currentProductLink
+
+          }
+
+        ]);
+
+
+        return;
+
+      }
+      catch (error) {
+
+        console.error(
+          'LINE 分享失敗',
+          error
+        );
+
+      }
 
     }
 
 
     /*
-     * 如果 LINE WebView 不支援，
-     * 嘗試使用一般分享。
+     * Browser Share
      */
 
     if (
       navigator.share
     ) {
 
-      navigator.share({
+      try {
 
-        title:
-          document.getElementById(
-            'createdProductName'
-          ).textContent,
+        await navigator.share({
 
-        text:
-          '團購連結',
+          title:
+            name,
 
-        url:
-          currentProductLink
+          text:
+            '團購連結',
 
-      });
+          url:
+            currentProductLink
 
-      return;
+        });
+
+
+        return;
+
+      }
+      catch (error) {
+
+        console.error(
+          error
+        );
+
+      }
 
     }
 
@@ -2284,7 +2864,7 @@
 
 
   /*************************************************
-   * 開啟剛建立的商品
+   * OPEN CREATED PRODUCT
    *************************************************/
 
   function openCreatedProduct() {
@@ -2301,10 +2881,7 @@
 
 
   /*************************************************
-   * 我的訂單
-   *
-   * 目前先做頁面骨架。
-   * 等 GAS getMyOrders 完成後接 API。
+   * MY ORDERS
    *************************************************/
 
   function openMyOrders() {
@@ -2322,7 +2899,9 @@
     ).innerHTML = `
 
       <div class="info-box">
+
         我的訂單功能正在接上後端 API。
+
       </div>
 
       <button
@@ -2338,7 +2917,7 @@
 
 
   /*************************************************
-   * 訂單返回
+   * BACK FROM ORDERS
    *************************************************/
 
   function goBackFromOrders() {
@@ -2369,7 +2948,36 @@
 
 
   /*************************************************
-   * Admin User UI
+   * CLOSE LIFF
+   *************************************************/
+
+  function closeLiff() {
+
+    if (
+      typeof liff !== 'undefined' &&
+      liff.isInClient()
+    ) {
+
+      liff.closeWindow();
+
+      return;
+
+    }
+
+
+    if (
+      window.history.length > 1
+    ) {
+
+      window.history.back();
+
+    }
+
+  }
+
+
+  /*************************************************
+   * ADMIN USER
    *************************************************/
 
   function setAdminUserInfo() {
@@ -2393,7 +3001,9 @@
     document.getElementById(
       'adminAvatar'
     ).textContent =
-      getAvatarText(name);
+      getAvatarText(
+        name
+      );
 
 
     const role =
@@ -2413,7 +3023,7 @@
 
 
   /*************************************************
-   * Customer User UI
+   * CUSTOMER USER
    *************************************************/
 
   function setCustomerUserInfo() {
@@ -2437,7 +3047,9 @@
     document.getElementById(
       'customerAvatar'
     ).textContent =
-      getAvatarText(name);
+      getAvatarText(
+        name
+      );
 
 
     document.getElementById(
@@ -2449,13 +3061,15 @@
     document.getElementById(
       'ordersAvatar'
     ).textContent =
-      getAvatarText(name);
+      getAvatarText(
+        name
+      );
 
   }
 
 
   /*************************************************
-   * Orders User UI
+   * ORDERS USER
    *************************************************/
 
   function setOrdersUserInfo() {
@@ -2479,16 +3093,20 @@
     document.getElementById(
       'ordersAvatar'
     ).textContent =
-      getAvatarText(name);
+      getAvatarText(
+        name
+      );
 
   }
 
 
   /*************************************************
-   * Avatar
+   * AVATAR
    *************************************************/
 
-  function getAvatarText(name) {
+  function getAvatarText(
+    name
+  ) {
 
     if (!name) {
       return '?';
@@ -2497,21 +3115,27 @@
 
     return name
       .trim()
-      .substring(0, 1);
+      .substring(
+        0,
+        1
+      );
 
   }
 
 
   /*************************************************
-   * Loading
+   * LOADING
    *************************************************/
 
-  function showLoading(text) {
+  function showLoading(
+    text
+  ) {
 
     document.getElementById(
       'loadingText'
     ).textContent =
-      text || '載入中...';
+      text ||
+      '載入中...';
 
 
     document.getElementById(
@@ -2521,38 +3145,13 @@
     );
 
 
-    document.getElementById(
-      'errorPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'adminPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'productPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'myOrdersPage'
-    ).classList.add(
-      'hidden'
-    );
+    hideAllPages();
 
   }
 
 
   /*************************************************
-   * Hide Loading
+   * HIDE LOADING
    *************************************************/
 
   function hideLoading() {
@@ -2567,44 +3166,14 @@
 
 
   /*************************************************
-   * 顯示頁面
+   * SHOW PAGE
    *************************************************/
 
-  function showPage(pageId) {
+  function showPage(
+    pageId
+  ) {
 
-    document.getElementById(
-      'loadingPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'errorPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'adminPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'productPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'myOrdersPage'
-    ).classList.add(
-      'hidden'
-    );
+    hideAllPages();
 
 
     document.getElementById(
@@ -2617,10 +3186,46 @@
 
 
   /*************************************************
-   * Error
+   * HIDE ALL PAGES
    *************************************************/
 
-  function showError(message) {
+  function hideAllPages() {
+
+    const pages = [
+
+      'adminPage',
+
+      'productPage',
+
+      'orderSuccessPage',
+
+      'myOrdersPage'
+
+    ];
+
+
+    pages.forEach(
+      function(pageId) {
+
+        document.getElementById(
+          pageId
+        ).classList.add(
+          'hidden'
+        );
+
+      }
+    );
+
+  }
+
+
+  /*************************************************
+   * ERROR
+   *************************************************/
+
+  function showError(
+    message
+  ) {
 
     document.getElementById(
       'loadingPage'
@@ -2629,25 +3234,7 @@
     );
 
 
-    document.getElementById(
-      'adminPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'productPage'
-    ).classList.add(
-      'hidden'
-    );
-
-
-    document.getElementById(
-      'myOrdersPage'
-    ).classList.add(
-      'hidden'
-    );
+    hideAllPages();
 
 
     document.getElementById(
@@ -2666,17 +3253,21 @@
 
 
   /*************************************************
-   * Create Product Error
+   * CREATE ERROR
    *************************************************/
 
-  function showCreateError(message) {
+  function showCreateError(
+    message
+  ) {
 
     document.getElementById(
       'createProductMessage'
     ).innerHTML = `
 
       <div class="error-box">
+
         ${escapeHtml(message)}
+
       </div>
 
     `;
@@ -2684,60 +3275,23 @@
   }
 
 
-  /*************************************************
-   * Inline Error
-   *************************************************/
+  function clearCreateProductMessage() {
 
-  function showInlineError(
-    parentId,
-    message
-  ) {
-
-    const parent =
-      document.getElementById(
-        parentId
-      );
-
-
-    const oldError =
-      parent.querySelector(
-        '.inline-error'
-      );
-
-
-    if (oldError) {
-      oldError.remove();
-    }
-
-
-    const error =
-      document.createElement(
-        'div'
-      );
-
-
-    error.className =
-      'error-box inline-error';
-
-
-    error.style.marginTop =
-      '12px';
-
-
-    error.textContent =
-      message;
-
-
-    parent.prepend(error);
+    document.getElementById(
+      'createProductMessage'
+    ).innerHTML =
+      '';
 
   }
 
 
   /*************************************************
-   * Status Text
+   * STATUS TEXT
    *************************************************/
 
-  function getStatusText(status) {
+  function getStatusText(
+    status
+  ) {
 
     switch (status) {
 
@@ -2754,7 +3308,8 @@
         return '✓ 已完成';
 
       default:
-        return status || '未知';
+        return status ||
+          '未知';
 
     }
 
@@ -2762,13 +3317,17 @@
 
 
   /*************************************************
-   * Money
+   * MONEY
    *************************************************/
 
-  function formatMoney(value) {
+  function formatMoney(
+    value
+  ) {
 
     const number =
-      Number(value || 0);
+      Number(
+        value || 0
+      );
 
 
     return number.toLocaleString(
@@ -2779,10 +3338,12 @@
 
 
   /*************************************************
-   * Date Time
+   * DATE
    *************************************************/
 
-  function formatDateTime(value) {
+  function formatDateTime(
+    value
+  ) {
 
     if (!value) {
       return '';
@@ -2790,22 +3351,43 @@
 
 
     const date =
-      new Date(value);
+      new Date(
+        value
+      );
 
 
-    if (isNaN(date.getTime())) {
-      return String(value);
+    if (
+      isNaN(
+        date.getTime()
+      )
+    ) {
+
+      return String(
+        value
+      );
+
     }
 
 
     return date.toLocaleString(
       'zh-TW',
       {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+
+        year:
+          'numeric',
+
+        month:
+          '2-digit',
+
+        day:
+          '2-digit',
+
+        hour:
+          '2-digit',
+
+        minute:
+          '2-digit'
+
       }
     );
 
@@ -2813,28 +3395,35 @@
 
 
   /*************************************************
-   * HTML Escape
+   * HTML ESCAPE
    *************************************************/
 
-  function escapeHtml(value) {
+  function escapeHtml(
+    value
+  ) {
 
     return String(value)
+
       .replace(
         /&/g,
         '&amp;'
       )
+
       .replace(
         /</g,
         '&lt;'
       )
+
       .replace(
         />/g,
         '&gt;'
       )
+
       .replace(
         /"/g,
         '&quot;'
       )
+
       .replace(
         /'/g,
         '&#039;'
@@ -2844,10 +3433,12 @@
 
 
   /*************************************************
-   * Coming Soon
+   * COMING SOON
    *************************************************/
 
-  function showComingSoon(name) {
+  function showComingSoon(
+    name
+  ) {
 
     alert(
       name +
@@ -2858,12 +3449,16 @@
 
 
   /*************************************************
-   * Debug
+   * DEBUG
    *************************************************/
 
-  function debugLog(message) {
+  function debugLog(
+    message
+  ) {
 
-    console.log(message);
+    console.log(
+      message
+    );
 
 
     const debug =
@@ -2885,7 +3480,7 @@
 
 
   /*************************************************
-   * 啟動
+   * START
    *************************************************/
 
   window.addEventListener(
@@ -2896,4 +3491,5 @@
 </script>
 
 </body>
+
 </html>
