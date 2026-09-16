@@ -57,36 +57,39 @@
             'Content-Type': 'text/plain;charset=utf-8'
           },
           body: JSON.stringify({
-            action: 'verifyIdentity',
+            action: 'verifyAdmin',
             idToken: idToken
           })
         });
-    
+        
         const result = await response.json();
-    
-        console.log('GAS 回應：', result);
-        console.log('GAS success:', result.success);
-        console.log('GAS user:', result.user);
-    
+        
+        console.log('Admin API 回應：', result);
+        
         if (!result.success) {
           throw new Error(
             result.message ||
             result.error ||
-            'LINE 身份驗證失敗'
+            'Admin 驗證失敗'
           );
         }
-    
-        if (!result.user) {
-          throw new Error('GAS 驗證成功，但沒有回傳 user 資料');
+        
+        if (!result.admin.isAdmin) {
+        
+          document.getElementById('status').textContent =
+            'LINE 登入成功，但你不是管理員';
+        
+          return;
         }
-    
-        const user = result.user;
-    
+        
         document.getElementById('status').textContent =
-          'LINE 登入成功，您好 ' + (user.displayName || 'LINE 使用者');
-    
-        console.log('LINE User ID:', user.userId);
-        console.log('LINE Name:', user.displayName);
+          '管理員登入成功：' +
+          result.user.displayName +
+          ' (' +
+          result.admin.role +
+          ')';
+        
+        console.log('管理員：', result.admin);
     
       } catch (error) {
         console.error('錯誤：', error);
