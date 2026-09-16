@@ -1,75 +1,209 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-
 <head>
-
   <meta charset="UTF-8">
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   >
 
-  <title>天增團購系統</title>
+  <title>LINE 團購系統</title>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-
   <style>
-
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
+    html,
     body {
       margin: 0;
-      padding: 20px;
-      background: #f5f5f5;
+      padding: 0;
+      min-height: 100%;
+      background: #f5f6f8;
+      color: #222;
       font-family:
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
+        "Noto Sans TC",
+        "Microsoft JhengHei",
         sans-serif;
     }
 
-    .container {
-      max-width: 600px;
+    body {
+      padding-bottom: 30px;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 680px;
       margin: 0 auto;
+      padding: 16px;
     }
 
-    h1 {
-      font-size: 24px;
-      margin-bottom: 8px;
-    }
-
-    .user-info {
-      background: white;
-      padding: 14px;
-      border-radius: 12px;
+    .header {
       margin-bottom: 16px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #777;
+      font-size: 14px;
     }
 
     .card {
-      background: white;
-      padding: 18px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 50px 20px;
+      color: #666;
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 14px;
+      border: 3px solid #ddd;
+      border-top-color: #111;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .error-box {
+      background: #fff1f1;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
       border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .success-box {
+      background: #effaf0;
+      color: #2e7d32;
+      border: 1px solid #c8e6c9;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .info-box {
+      background: #f4f7ff;
+      color: #334;
+      border: 1px solid #dce4ff;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #06c755;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .user-role {
+      margin-top: 3px;
+      color: #777;
+      font-size: 13px;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .form-group {
       margin-bottom: 16px;
     }
 
-    label {
+    .form-label {
       display: block;
+      margin-bottom: 7px;
+      font-size: 14px;
       font-weight: 600;
-      margin-bottom: 6px;
+    }
+
+    .required {
+      color: #e53935;
     }
 
     input,
-    textarea {
+    textarea,
+    select {
       width: 100%;
-      padding: 12px;
       border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-      margin-bottom: 16px;
+      border-radius: 10px;
+      padding: 12px 13px;
+      outline: none;
+      background: #fff;
+      color: #222;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: #555;
     }
 
     textarea {
@@ -77,247 +211,545 @@
       resize: vertical;
     }
 
-    button {
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
       width: 100%;
-      padding: 14px;
       border: 0;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-weight: 700;
+      font-size: 15px;
+      transition: 0.15s;
     }
 
-    .primary {
-      background: #06c755;
-      color: white;
+    .btn:active {
+      transform: scale(0.98);
     }
 
-    .secondary {
+    .btn-primary {
+      background: #111;
+      color: #fff;
+    }
+
+    .btn-primary:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
       background: #eee;
-      color: #333;
+      color: #222;
     }
 
-    button:disabled {
-      opacity: 0.5;
+    .btn-line {
+      background: #06c755;
+      color: #fff;
     }
 
-    .hidden {
-      display: none;
+    .btn-danger {
+      background: #e53935;
+      color: #fff;
     }
 
-    .success {
-      background: #e8f8ed;
-      padding: 16px;
-      border-radius: 10px;
-      margin-top: 16px;
-    }
-
-    .link-box {
-      word-break: break-all;
-      background: #f5f5f5;
-      padding: 12px;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-
-    .error {
-      color: #d00;
+    .btn + .btn {
       margin-top: 10px;
     }
 
+    .admin-menu {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .menu-button {
+      min-height: 100px;
+      border: 1px solid #eee;
+      background: #fafafa;
+      border-radius: 14px;
+      padding: 16px;
+      text-align: left;
+    }
+
+    .menu-button strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .menu-button span {
+      color: #777;
+      font-size: 13px;
+    }
+
+    .product-name {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .product-price {
+      margin-top: 10px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .product-price::before {
+      content: "$";
+      font-size: 16px;
+      margin-right: 2px;
+    }
+
+    .product-description {
+      margin-top: 18px;
+      color: #555;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .status {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-open {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status-draft {
+      background: #fff8e1;
+      color: #f57f17;
+    }
+
+    .status-closed {
+      background: #eeeeee;
+      color: #666;
+    }
+
+    .deadline {
+      margin-top: 12px;
+      color: #777;
+      font-size: 13px;
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .quantity-btn {
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 50%;
+      background: #eee;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .quantity-value {
+      min-width: 50px;
+      text-align: center;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    .total-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      margin-top: 12px;
+      border-top: 1px solid #eee;
+      font-weight: 600;
+    }
+
+    .total-price {
+      font-size: 22px;
+    }
+
+    .link-box {
+      background: #f7f7f7;
+      border-radius: 10px;
+      padding: 12px;
+      word-break: break-all;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .result-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .result-item:last-child {
+      border-bottom: 0;
+    }
+
+    .result-label {
+      color: #777;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .result-value {
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .debug {
+      margin-top: 20px;
+      padding: 12px;
+      background: #111;
+      color: #0f0;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    @media (max-width: 480px) {
+      .app {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .admin-menu {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
-
 </head>
-
 
 <body>
 
+<div class="app">
 
-<div class="container">
-
-
-  <h1>天增團購系統</h1>
-
-
-  <div
-    id="status"
-    class="card"
-  >
-    LINE 登入中...
+  <!-- =========================
+       Loading
+  ========================== -->
+  <div id="loadingPage" class="card loading">
+    <div class="loading-spinner"></div>
+    <div id="loadingText">正在連線 LINE...</div>
   </div>
 
 
-  <div
-    id="userInfo"
-    class="user-info hidden"
-  >
+  <!-- =========================
+       Error
+  ========================== -->
+  <div id="errorPage" class="hidden">
+    <div class="error-box">
+      <strong>發生錯誤</strong>
+      <div id="errorMessage" style="margin-top: 6px;"></div>
+    </div>
 
-    <strong id="displayName"></strong>
-
-    <br>
-
-    <small id="role"></small>
-
+    <button
+      class="btn btn-secondary"
+      onclick="location.reload()"
+    >
+      重新載入
+    </button>
   </div>
 
 
-  <!-- =================================================
-       Admin 首頁
-       ================================================= -->
+  <!-- =========================
+       Admin Page
+  ========================== -->
+  <div id="adminPage" class="hidden">
 
-  <div
-    id="adminHome"
-    class="card hidden"
-  >
+    <div class="header">
+      <h1>LINE 團購管理</h1>
+      <p>管理商品、建立團購連結</p>
+    </div>
 
-    <h2>管理後台</h2>
+    <!-- 使用者 -->
+    <div class="card">
+      <div class="user-card">
+        <div id="adminAvatar" class="avatar">
+          ?
+        </div>
 
-    <button
-      class="primary"
-      onclick="showCreateProduct()"
-    >
-      ＋ 新增團購
-    </button>
+        <div>
+          <div id="adminDisplayName" class="user-name">
+            LINE 使用者
+          </div>
 
-  </div>
-
-
-  <!-- =================================================
-       新增團購
-       ================================================= -->
-
-  <div
-    id="createProductPage"
-    class="card hidden"
-  >
-
-    <h2>新增團購</h2>
+          <div id="adminRole" class="user-role">
+            管理員
+          </div>
+        </div>
+      </div>
+    </div>
 
 
-    <label>
-      商品名稱 *
-    </label>
+    <!-- 管理選單 -->
+    <div id="adminHomeCard" class="card">
 
-    <input
-      id="productName"
-      type="text"
-      placeholder="例如：日本麝香葡萄"
-    >
+      <h2 class="section-title">
+        管理功能
+      </h2>
 
+      <div class="admin-menu">
 
-    <label>
-      商品價格 *
-    </label>
+        <button
+          class="menu-button"
+          onclick="showCreateProduct()"
+        >
+          <strong>＋ 新增團購</strong>
+          <span>建立新的商品與團購連結</span>
+        </button>
 
-    <input
-      id="price"
-      type="number"
-      min="0"
-      step="1"
-      placeholder="699"
-    >
+        <button
+          class="menu-button"
+          onclick="showComingSoon('我的團購')"
+        >
+          <strong>📦 我的團購</strong>
+          <span>查看與管理目前團購</span>
+        </button>
 
+        <button
+          class="menu-button"
+          onclick="showComingSoon('所有訂單')"
+        >
+          <strong>📋 所有訂單</strong>
+          <span>查看所有客戶訂單</span>
+        </button>
 
-    <label>
-      最大訂購數量
-    </label>
+        <button
+          class="menu-button"
+          onclick="showComingSoon('管理員設定')"
+        >
+          <strong>⚙️ 系統管理</strong>
+          <span>管理員與系統設定</span>
+        </button>
 
-    <input
-      id="maxQty"
-      type="number"
-      min="0"
-      step="1"
-      placeholder="100"
-    >
+      </div>
 
-
-    <label>
-      開始時間 *
-    </label>
-
-    <input
-      id="startAt"
-      type="datetime-local"
-    >
-
-
-    <label>
-      截止時間 *
-    </label>
-
-    <input
-      id="endAt"
-      type="datetime-local"
-    >
+    </div>
 
 
-    <label>
-      商品說明
-    </label>
+    <!-- 新增團購 -->
+    <div id="createProductCard" class="card hidden">
 
-    <textarea
-      id="description"
-      placeholder="商品說明..."
-    ></textarea>
+      <h2 class="section-title">
+        新增團購
+      </h2>
 
+      <div id="createProductMessage"></div>
 
-    <button
-      id="createButton"
-      class="primary"
-      onclick="createProduct()"
-    >
-      建立團購
-    </button>
+      <div class="form-group">
+        <label class="form-label">
+          商品名稱 <span class="required">*</span>
+        </label>
 
-
-    <button
-      class="secondary"
-      onclick="showAdminHome()"
-      style="margin-top:10px;"
-    >
-      返回
-    </button>
+        <input
+          id="productName"
+          type="text"
+          placeholder="例如：日本麝香葡萄"
+          maxlength="100"
+        >
+      </div>
 
 
-    <div
-      id="createError"
-      class="error"
-    ></div>
+      <div class="form-row">
+
+        <div class="form-group">
+          <label class="form-label">
+            商品價格 <span class="required">*</span>
+          </label>
+
+          <input
+            id="productPrice"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="例如：1200"
+          >
+        </div>
 
 
-    <!-- =================================================
-         建立成功
-         ================================================= -->
+        <div class="form-group">
+          <label class="form-label">
+            最大訂購數量
+          </label>
 
-    <div
-      id="createSuccess"
-      class="success hidden"
-    >
+          <input
+            id="productMaxQty"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0 = 不限"
+          >
+        </div>
 
-      <strong>
+      </div>
+
+
+      <div class="form-row">
+
+        <div class="form-group">
+          <label class="form-label">
+            開始時間 <span class="required">*</span>
+          </label>
+
+          <input
+            id="productStartAt"
+            type="datetime-local"
+          >
+        </div>
+
+
+        <div class="form-group">
+          <label class="form-label">
+            截止時間 <span class="required">*</span>
+          </label>
+
+          <input
+            id="productEndAt"
+            type="datetime-local"
+          >
+        </div>
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label class="form-label">
+          商品說明
+        </label>
+
+        <textarea
+          id="productDescription"
+          placeholder="例如：每盒 2 串，限量 50 盒。"
+          maxlength="2000"
+        ></textarea>
+
+      </div>
+
+
+      <button
+        id="createProductButton"
+        class="btn btn-primary"
+        onclick="createProduct()"
+      >
+        建立團購
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="showAdminHome()"
+      >
+        返回
+      </button>
+
+    </div>
+
+
+    <!-- 建立成功 -->
+    <div id="createdProductCard" class="card hidden">
+
+      <h2 class="section-title">
         團購建立成功
-      </strong>
+      </h2>
 
-      <p>
-        商品：
-        <span id="resultProductName"></span>
-      </p>
+      <div class="success-box">
+        團購已成功建立。
+      </div>
 
-      <p>
-        團購編號：
-        <span id="resultProductId"></span>
-      </p>
+      <div class="result-item">
+        <div class="result-label">
+          商品名稱
+        </div>
+
+        <div
+          id="createdProductName"
+          class="result-value"
+        ></div>
+      </div>
+
+
+      <div class="result-item">
+        <div class="result-label">
+          Product ID
+        </div>
+
+        <div
+          id="createdProductId"
+          class="result-value"
+        ></div>
+      </div>
+
+
+      <div class="result-item">
+        <div class="result-label">
+          狀態
+        </div>
+
+        <div
+          id="createdProductStatus"
+          class="result-value"
+        ></div>
+      </div>
+
 
       <div
-        id="productLink"
+        id="createdProductLink"
         class="link-box"
+        style="margin-top: 16px;"
       ></div>
 
 
       <button
-        class="primary"
+        class="btn btn-primary"
         onclick="copyProductLink()"
       >
         複製團購連結
+      </button>
+
+      <button
+        class="btn btn-line"
+        onclick="shareProductLink()"
+      >
+        分享到 LINE
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="openCreatedProduct()"
+      >
+        開啟團購頁
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="showAdminHome()"
+      >
+        返回管理首頁
       </button>
 
     </div>
@@ -325,536 +757,2143 @@
   </div>
 
 
+  <!-- =========================
+       Customer Product Page
+  ========================== -->
+  <div id="productPage" class="hidden">
+
+    <div class="header">
+      <h1>團購訂購</h1>
+      <p>請確認商品資訊後送出訂單</p>
+    </div>
+
+
+    <!-- 使用者 -->
+    <div class="card">
+
+      <div class="user-card">
+
+        <div id="customerAvatar" class="avatar">
+          ?
+        </div>
+
+        <div>
+          <div
+            id="customerDisplayName"
+            class="user-name"
+          >
+            LINE 使用者
+          </div>
+
+          <div class="user-role">
+            LINE 登入
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- 商品 -->
+    <div class="card">
+
+      <div id="productStatus"></div>
+
+      <h2
+        id="productName"
+        class="product-name"
+      >
+        商品載入中...
+      </h2>
+
+
+      <div
+        id="productPrice"
+        class="product-price"
+      >
+        0
+      </div>
+
+
+      <div
+        id="productDescription"
+        class="product-description"
+      ></div>
+
+
+      <div
+        id="productDeadline"
+        class="deadline"
+      ></div>
+
+    </div>
+
+
+    <!-- 訂購 -->
+    <div
+      id="orderCard"
+      class="card"
+    >
+
+      <h2 class="section-title">
+        訂購數量
+      </h2>
+
+
+      <div class="quantity-control">
+
+        <button
+          id="decreaseQuantityButton"
+          class="quantity-btn"
+          onclick="changeQuantity(-1)"
+        >
+          −
+        </button>
+
+
+        <div
+          id="quantityValue"
+          class="quantity-value"
+        >
+          1
+        </div>
+
+
+        <button
+          id="increaseQuantityButton"
+          class="quantity-btn"
+          onclick="changeQuantity(1)"
+        >
+          ＋
+        </button>
+
+      </div>
+
+
+      <div class="total-box">
+
+        <span>
+          小計
+        </span>
+
+        <span
+          id="totalPrice"
+          class="total-price"
+        >
+          $0
+        </span>
+
+      </div>
+
+
+      <button
+        id="submitOrderButton"
+        class="btn btn-primary"
+        onclick="submitOrder()"
+      >
+        送出訂單
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="openMyOrders()"
+      >
+        查看我的訂單
+      </button>
+
+    </div>
+
+
+    <!-- 關閉狀態 -->
+    <div
+      id="closedProductCard"
+      class="card hidden"
+    >
+
+      <div class="info-box">
+        <strong>本團購目前無法訂購</strong>
+
+        <div
+          id="closedProductMessage"
+          style="margin-top: 6px;"
+        ></div>
+      </div>
+
+      <button
+        class="btn btn-secondary"
+        onclick="openMyOrders()"
+      >
+        查看我的訂單
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       My Orders
+  ========================== -->
+  <div id="myOrdersPage" class="hidden">
+
+    <div class="header">
+      <h1>我的訂單</h1>
+      <p>查看目前使用 LINE 帳號建立的訂單</p>
+    </div>
+
+    <div class="card">
+
+      <div class="user-card">
+
+        <div id="ordersAvatar" class="avatar">
+          ?
+        </div>
+
+        <div>
+          <div
+            id="ordersDisplayName"
+            class="user-name"
+          >
+            LINE 使用者
+          </div>
+
+          <div class="user-role">
+            我的訂單
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div
+      id="ordersContent"
+      class="card"
+    >
+      <div class="loading">
+        載入訂單中...
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       Debug
+  ========================== -->
+  <div
+    id="debug"
+    class="debug hidden"
+  ></div>
+
 </div>
 
 
 <script>
 
+  /*************************************************
+   * 設定
+   *************************************************/
+
+  const LIFF_ID = '2011633639-yuSTNpAR';
+
+  // ================================================
+  // 把這裡換成你的 GAS Web App URL
+  // ================================================
+
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
 
 
-const LIFF_ID =
-  '2011633639-yuSTNpAR';
+  /*************************************************
+   * 全域狀態
+   *************************************************/
+
+  let idToken = null;
+
+  let currentUser = null;
+
+  let currentAdmin = null;
+
+  let currentProduct = null;
+
+  let currentProductId = null;
+
+  let currentQuantity = 1;
+
+  let currentProductLink = '';
 
 
-const API_URL =
-  'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
+  /*************************************************
+   * 初始化
+   *************************************************/
+
+  async function init() {
+
+    try {
+
+      showLoading('正在初始化 LINE...');
+
+      await liff.init({
+        liffId: LIFF_ID
+      });
+
+      debugLog('LIFF 初始化成功');
 
 
-let idToken = null;
+      if (!liff.isLoggedIn()) {
 
-let currentUser = null;
+        showLoading('正在登入 LINE...');
 
-let currentAdmin = null;
+        liff.login();
 
-let currentProductLink = null;
-
-
-
-async function init() {
-
-  try {
+        return;
+      }
 
 
-    await liff.init({
-      liffId: LIFF_ID
+      showLoading('正在取得 LINE 身分...');
+
+      idToken = liff.getIDToken();
+
+      if (!idToken) {
+        throw new Error(
+          '無法取得 LINE ID Token，請確認 LIFF 已啟用 openid scope。'
+        );
+      }
+
+      debugLog('取得 ID Token 成功');
+
+
+      /*
+       * 先從 URL 判斷目前是：
+       *
+       * ?p=PRODUCT_ID
+       *
+       * 有 p → 客戶商品頁
+       *
+       * 沒有 p → 管理員入口
+       */
+
+      currentProductId = getProductIdFromUrl();
+
+
+      if (currentProductId) {
+
+        await initCustomer();
+
+      } else {
+
+        await initAdmin();
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+      showError(
+        error.message || String(error)
+      );
+
+    }
+
+  }
+
+
+  /*************************************************
+   * 客戶初始化
+   *************************************************/
+
+  async function initCustomer() {
+
+    showLoading('正在驗證 LINE 身分...');
+
+
+    const result = await apiRequest({
+      action: 'verifyIdentity',
+      idToken: idToken
     });
 
 
-    console.log(
-      'LIFF 初始化成功'
-    );
-
-
-
-    if (!liff.isLoggedIn()) {
-
-      liff.login();
-
-      return;
-
-    }
-
-
-
-    idToken =
-      liff.getIDToken();
-
-
-    if (!idToken) {
+    if (!result.success) {
 
       throw new Error(
-        '無法取得 LINE ID Token'
+        result.message || 'LINE 身分驗證失敗'
       );
 
     }
 
 
+    currentUser = result.user;
 
-    const response =
-      await fetch(
-        API_URL,
-        {
-          method: 'POST',
 
-          headers: {
-            'Content-Type':
-              'text/plain;charset=utf-8'
-          },
+    setCustomerUserInfo();
 
-          body: JSON.stringify({
 
-            action:
-              'verifyAdmin',
+    showLoading('正在載入團購商品...');
 
-            idToken:
-              idToken
 
-          })
-        }
+    await loadProduct(currentProductId);
+
+  }
+
+
+  /*************************************************
+   * 管理員初始化
+   *************************************************/
+
+  async function initAdmin() {
+
+    showLoading('正在確認管理員權限...');
+
+
+    const result = await apiRequest({
+      action: 'verifyAdmin',
+      idToken: idToken
+    });
+
+
+    if (!result.success) {
+
+      throw new Error(
+        result.message || '管理員驗證失敗'
       );
 
-
-    const result =
-      await response.json();
+    }
 
 
-    console.log(
-      'Admin 驗證：',
-      result
+    currentUser = result.user;
+
+    currentAdmin = result.admin;
+
+
+    if (!currentAdmin || !currentAdmin.isAdmin) {
+
+      throw new Error(
+        '此 LINE 帳號沒有管理員權限。'
+      );
+
+    }
+
+
+    setAdminUserInfo();
+
+
+    showAdminHome();
+
+  }
+
+
+  /*************************************************
+   * URL Product ID
+   *************************************************/
+
+  function getProductIdFromUrl() {
+
+    const params = new URLSearchParams(
+      window.location.search
     );
+
+    const productId = params.get('p');
+
+    if (!productId) {
+      return null;
+    }
+
+    return productId.trim();
+
+  }
+
+
+  /*************************************************
+   * API Request
+   *************************************************/
+
+  async function apiRequest(payload) {
+
+    debugLog(
+      'API Request:\n' +
+      JSON.stringify(payload, null, 2)
+    );
+
+
+    const response = await fetch(
+      API_URL,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+
+        body: JSON.stringify(payload)
+      }
+    );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        'API HTTP 錯誤：' +
+        response.status
+      );
+
+    }
+
+
+    const text = await response.text();
+
+
+    debugLog(
+      'API Response:\n' +
+      text
+    );
+
+
+    let result;
+
+    try {
+
+      result = JSON.parse(text);
+
+    } catch (error) {
+
+      throw new Error(
+        'API 回傳不是有效 JSON：' +
+        text
+      );
+
+    }
+
+
+    if (!result) {
+
+      throw new Error(
+        'API 沒有回傳資料'
+      );
+
+    }
+
+
+    return result;
+
+  }
+
+
+  /*************************************************
+   * 載入商品
+   *************************************************/
+
+  async function loadProduct(productId) {
+
+    const result = await apiRequest({
+
+      action: 'getProduct',
+
+      productId: productId
+
+    });
 
 
     if (!result.success) {
 
       throw new Error(
         result.message ||
-        result.error ||
-        'Admin 驗證失敗'
+        '找不到此團購商品'
       );
 
     }
 
 
-    currentUser =
-      result.user;
+    currentProduct = result.product;
 
 
-    currentAdmin =
-      result.admin;
+    renderProduct(
+      currentProduct
+    );
 
 
+    hideLoading();
 
-    if (!currentAdmin.isAdmin) {
+    showPage('productPage');
+
+  }
+
+
+  /*************************************************
+   * 商品頁 Render
+   *************************************************/
+
+  function renderProduct(product) {
+
+    document.getElementById(
+      'productName'
+    ).textContent =
+      product.productName || '未命名商品';
+
+
+    document.getElementById(
+      'productPrice'
+    ).textContent =
+      formatMoney(product.price);
+
+
+    document.getElementById(
+      'productDescription'
+    ).textContent =
+      product.description || '';
+
+
+    /*
+     * 狀態
+     */
+
+    const statusElement =
+      document.getElementById(
+        'productStatus'
+      );
+
+
+    statusElement.innerHTML = '';
+
+
+    const statusBadge =
+      document.createElement('span');
+
+
+    statusBadge.className =
+      'status';
+
+
+    if (product.status === 'OPEN') {
+
+      statusBadge.classList.add(
+        'status-open'
+      );
+
+      statusBadge.textContent =
+        '🟢 開放訂購';
+
+    } else if (
+      product.status === 'DRAFT'
+    ) {
+
+      statusBadge.classList.add(
+        'status-draft'
+      );
+
+      statusBadge.textContent =
+        '🟡 尚未開始';
+
+    } else {
+
+      statusBadge.classList.add(
+        'status-closed'
+      );
+
+      statusBadge.textContent =
+        '⚪ 已截止';
+
+    }
+
+
+    statusElement.appendChild(
+      statusBadge
+    );
+
+
+    /*
+     * 截止時間
+     */
+
+    const deadline =
+      document.getElementById(
+        'productDeadline'
+      );
+
+
+    if (product.endAt) {
+
+      deadline.textContent =
+        '截止時間：' +
+        formatDateTime(
+          product.endAt
+        );
+
+    } else {
+
+      deadline.textContent = '';
+
+    }
+
+
+    /*
+     * 訂購區
+     */
+
+    const orderCard =
+      document.getElementById(
+        'orderCard'
+      );
+
+
+    const closedCard =
+      document.getElementById(
+        'closedProductCard'
+      );
+
+
+    if (product.status === 'OPEN') {
+
+      orderCard.classList.remove(
+        'hidden'
+      );
+
+      closedCard.classList.add(
+        'hidden'
+      );
+
+      enableOrderControls();
+
+
+    } else {
+
+      orderCard.classList.add(
+        'hidden'
+      );
+
+      closedCard.classList.remove(
+        'hidden'
+      );
+
+
+      const closedMessage =
+        document.getElementById(
+          'closedProductMessage'
+        );
+
+
+      if (product.status === 'DRAFT') {
+
+        closedMessage.textContent =
+          '本團購尚未開始。';
+
+      } else {
+
+        closedMessage.textContent =
+          '本團購已截止，目前無法新增訂單。';
+
+      }
+
+    }
+
+
+    currentQuantity = 1;
+
+    updateQuantityUI();
+
+  }
+
+
+  /*************************************************
+   * 啟用訂購控制
+   *************************************************/
+
+  function enableOrderControls() {
+
+    document.getElementById(
+      'submitOrderButton'
+    ).disabled = false;
+
+
+    document.getElementById(
+      'decreaseQuantityButton'
+    ).disabled = false;
+
+
+    document.getElementById(
+      'increaseQuantityButton'
+    ).disabled = false;
+
+  }
+
+
+  /*************************************************
+   * 數量
+   *************************************************/
+
+  function changeQuantity(delta) {
+
+    if (!currentProduct) {
+      return;
+    }
+
+
+    let nextQuantity =
+      currentQuantity + delta;
+
+
+    if (nextQuantity < 1) {
+      nextQuantity = 1;
+    }
+
+
+    const maxQty =
+      Number(
+        currentProduct.maxQty || 0
+      );
+
+
+    /*
+     * 目前先把 maxQty 當成單筆數量上限。
+     *
+     * 真正 createOrder 時，
+     * 後端仍必須再次檢查整個團購的總量。
+     */
+
+    if (
+      maxQty > 0 &&
+      nextQuantity > maxQty
+    ) {
+
+      nextQuantity = maxQty;
+
+    }
+
+
+    currentQuantity =
+      nextQuantity;
+
+
+    updateQuantityUI();
+
+  }
+
+
+  /*************************************************
+   * 更新數量 UI
+   *************************************************/
+
+  function updateQuantityUI() {
+
+    document.getElementById(
+      'quantityValue'
+    ).textContent =
+      currentQuantity;
+
+
+    if (currentProduct) {
+
+      const total =
+        Number(
+          currentProduct.price || 0
+        ) *
+        currentQuantity;
+
 
       document.getElementById(
-        'status'
+        'totalPrice'
       ).textContent =
-        'LINE 登入成功，但你不是管理員';
+        '$' + formatMoney(total);
+
+    }
+
+  }
+
+
+  /*************************************************
+   * 暫時送出訂單
+   *
+   * 注意：
+   * 目前後端還沒有 createOrder。
+   * 這裡只做測試，不會真的寫入 Orders。
+   *************************************************/
+
+  async function submitOrder() {
+
+    if (!currentProduct) {
+
+      showInlineError(
+        'orderCard',
+        '商品資料尚未載入。'
+      );
 
       return;
 
     }
 
 
+    if (currentProduct.status !== 'OPEN') {
+
+      alert(
+        '此團購目前無法訂購。'
+      );
+
+      return;
+
+    }
+
+
+    const button =
+      document.getElementById(
+        'submitOrderButton'
+      );
+
+
+    button.disabled = true;
+
+    button.textContent =
+      '處理中...';
+
+
+    try {
+
+      /*
+       * 暫時測試資料
+       *
+       * 等 GAS createOrder 完成後，
+       * 再改成真正 API。
+       */
+
+      const requestId =
+        generateRequestId();
+
+
+      console.log({
+        action: 'createOrder',
+        idToken: idToken,
+        productId:
+          currentProduct.productId,
+        quantity:
+          currentQuantity,
+        requestId:
+          requestId
+      });
+
+
+      alert(
+        '目前前端測試完成。\n\n' +
+        '商品：' +
+        currentProduct.productName +
+        '\n' +
+        '數量：' +
+        currentQuantity +
+        '\n\n' +
+        '下一步再接 GAS createOrder。'
+      );
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        error.message ||
+        '送出訂單失敗'
+      );
+
+    } finally {
+
+      button.disabled = false;
+
+      button.textContent =
+        '送出訂單';
+
+    }
+
+  }
+
+
+  /*************************************************
+   * Request ID
+   *************************************************/
+
+  function generateRequestId() {
+
+    if (
+      window.crypto &&
+      typeof window.crypto.randomUUID ===
+        'function'
+    ) {
+
+      return window.crypto.randomUUID();
+
+    }
+
+
+    return (
+      Date.now().toString(36) +
+      '-' +
+      Math.random()
+        .toString(36)
+        .substring(2, 12)
+    );
+
+  }
+
+
+  /*************************************************
+   * Admin: 新增團購
+   *************************************************/
+
+  async function createProduct() {
+
+    const button =
+      document.getElementById(
+        'createProductButton'
+      );
+
+
+    const message =
+      document.getElementById(
+        'createProductMessage'
+      );
+
+
+    message.innerHTML = '';
+
+
+    const productName =
+      document.getElementById(
+        'productName'
+      ).value.trim();
+
+
+    const priceRaw =
+      document.getElementById(
+        'productPrice'
+      ).value;
+
+
+    const maxQtyRaw =
+      document.getElementById(
+        'productMaxQty'
+      ).value;
+
+
+    const startAt =
+      document.getElementById(
+        'productStartAt'
+      ).value;
+
+
+    const endAt =
+      document.getElementById(
+        'productEndAt'
+      ).value;
+
+
+    const description =
+      document.getElementById(
+        'productDescription'
+      ).value.trim();
+
+
+    /*
+     * 前端基本驗證
+     */
+
+    if (!productName) {
+
+      showCreateError(
+        '請輸入商品名稱。'
+      );
+
+      return;
+
+    }
+
+
+    if (
+      priceRaw === '' ||
+      Number(priceRaw) < 0
+    ) {
+
+      showCreateError(
+        '請輸入正確的商品價格。'
+      );
+
+      return;
+
+    }
+
+
+    if (!startAt) {
+
+      showCreateError(
+        '請選擇開始時間。'
+      );
+
+      return;
+
+    }
+
+
+    if (!endAt) {
+
+      showCreateError(
+        '請選擇截止時間。'
+      );
+
+      return;
+
+    }
+
+
+    if (
+      new Date(endAt) <=
+      new Date(startAt)
+    ) {
+
+      showCreateError(
+        '截止時間必須晚於開始時間。'
+      );
+
+      return;
+
+    }
+
+
+    let maxQty = 0;
+
+
+    if (maxQtyRaw !== '') {
+
+      maxQty =
+        Number(maxQtyRaw);
+
+
+      if (
+        !Number.isInteger(maxQty) ||
+        maxQty < 0
+      ) {
+
+        showCreateError(
+          '最大訂購數量格式錯誤。'
+        );
+
+        return;
+
+      }
+
+    }
+
+
+    /*
+     * 開始建立
+     */
+
+    button.disabled = true;
+
+    button.textContent =
+      '建立中...';
+
+
+    try {
+
+      const result =
+        await apiRequest({
+
+          action: 'createProduct',
+
+          idToken: idToken,
+
+          product: {
+
+            productName:
+              productName,
+
+            price:
+              Number(priceRaw),
+
+            maxQty:
+              maxQty,
+
+            description:
+              description,
+
+            options: [],
+
+            startAt:
+              startAt,
+
+            endAt:
+              endAt
+
+          }
+
+        });
+
+
+      if (!result.success) {
+
+        throw new Error(
+          result.message ||
+          '建立團購失敗'
+        );
+
+      }
+
+
+      /*
+       * 建立團購連結
+       */
+
+      const product =
+        result.product;
+
+
+      currentProductLink =
+        window.location.origin +
+        window.location.pathname +
+        '?p=' +
+        encodeURIComponent(
+          product.productId
+        );
+
+
+      /*
+       * 顯示結果
+       */
+
+      document.getElementById(
+        'createdProductName'
+      ).textContent =
+        product.productName;
+
+
+      document.getElementById(
+        'createdProductId'
+      ).textContent =
+        product.productId;
+
+
+      document.getElementById(
+        'createdProductStatus'
+      ).textContent =
+        getStatusText(
+          product.status
+        );
+
+
+      document.getElementById(
+        'createdProductLink'
+      ).textContent =
+        currentProductLink;
+
+
+      /*
+       * 切換畫面
+       */
+
+      document.getElementById(
+        'createProductCard'
+      ).classList.add(
+        'hidden'
+      );
+
+
+      document.getElementById(
+        'adminHomeCard'
+      ).classList.add(
+        'hidden'
+      );
+
+
+      document.getElementById(
+        'createdProductCard'
+      ).classList.remove(
+        'hidden'
+      );
+
+
+      /*
+       * 清空表單
+       */
+
+      resetCreateProductForm();
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      showCreateError(
+        error.message ||
+        '建立團購失敗'
+      );
+
+    } finally {
+
+      button.disabled = false;
+
+      button.textContent =
+        '建立團購';
+
+    }
+
+  }
+
+
+  /*************************************************
+   * 清空新增商品表單
+   *************************************************/
+
+  function resetCreateProductForm() {
 
     document.getElementById(
-      'status'
+      'productName'
+    ).value = '';
+
+
+    document.getElementById(
+      'productPrice'
+    ).value = '';
+
+
+    document.getElementById(
+      'productMaxQty'
+    ).value = '';
+
+
+    document.getElementById(
+      'productStartAt'
+    ).value = '';
+
+
+    document.getElementById(
+      'productEndAt'
+    ).value = '';
+
+
+    document.getElementById(
+      'productDescription'
+    ).value = '';
+
+  }
+
+
+  /*************************************************
+   * 顯示新增團購
+   *************************************************/
+
+  function showCreateProduct() {
+
+    document.getElementById(
+      'adminHomeCard'
     ).classList.add(
       'hidden'
     );
 
 
     document.getElementById(
-      'userInfo'
+      'createdProductCard'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'createProductCard'
     ).classList.remove(
       'hidden'
     );
 
 
     document.getElementById(
-      'displayName'
-    ).textContent =
-      currentUser.displayName;
-
-
-    document.getElementById(
-      'role'
-    ).textContent =
-      '權限：' +
-      currentAdmin.role;
-
-
-    showAdminHome();
-
-
-  } catch (error) {
-
-    console.error(
-      error
-    );
-
-
-    document.getElementById(
-      'status'
-    ).textContent =
-      '登入失敗：' +
-      error.message;
-
-  }
-
-}
-
-
-
-function showAdminHome() {
-
-  document.getElementById(
-    'adminHome'
-  ).classList.remove(
-    'hidden'
-  );
-
-
-  document.getElementById(
-    'createProductPage'
-  ).classList.add(
-    'hidden'
-  );
-
-}
-
-
-
-function showCreateProduct() {
-
-  document.getElementById(
-    'adminHome'
-  ).classList.add(
-    'hidden'
-  );
-
-
-  document.getElementById(
-    'createProductPage'
-  ).classList.remove(
-    'hidden'
-  );
-
-
-  document.getElementById(
-    'createSuccess'
-  ).classList.add(
-    'hidden'
-  );
-
-
-  document.getElementById(
-    'createError'
-  ).textContent = '';
-
-}
-
-
-
-async function createProduct() {
-
-  const button =
-    document.getElementById(
-      'createButton'
-    );
-
-
-  const productName =
-    document.getElementById(
-      'productName'
-    ).value.trim();
-
-
-  const price =
-    document.getElementById(
-      'price'
-    ).value;
-
-
-  const maxQty =
-    document.getElementById(
-      'maxQty'
-    ).value;
-
-
-  const startAt =
-    document.getElementById(
-      'startAt'
-    ).value;
-
-
-  const endAt =
-    document.getElementById(
-      'endAt'
-    ).value;
-
-
-  const description =
-    document.getElementById(
-      'description'
-    ).value.trim();
-
-
-
-  if (!productName) {
-
-    showCreateError(
-      '請輸入商品名稱'
-    );
-
-    return;
+      'createProductMessage'
+    ).innerHTML = '';
 
   }
 
 
-  if (
-    price === '' ||
-    Number(price) < 0
-  ) {
+  /*************************************************
+   * 返回管理首頁
+   *************************************************/
 
-    showCreateError(
-      '請輸入正確價格'
+  function showAdminHome() {
+
+    document.getElementById(
+      'createProductCard'
+    ).classList.add(
+      'hidden'
     );
 
-    return;
+
+    document.getElementById(
+      'createdProductCard'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'adminHomeCard'
+    ).classList.remove(
+      'hidden'
+    );
 
   }
 
 
-  if (!startAt) {
+  /*************************************************
+   * 複製商品連結
+   *************************************************/
 
-    showCreateError(
-      '請選擇開始時間'
-    );
+  async function copyProductLink() {
 
-    return;
-
-  }
-
-
-  if (!endAt) {
-
-    showCreateError(
-      '請選擇截止時間'
-    );
-
-    return;
-
-  }
+    if (!currentProductLink) {
+      return;
+    }
 
 
-  if (
-    new Date(endAt) <=
-    new Date(startAt)
-  ) {
+    try {
 
-    showCreateError(
-      '截止時間必須晚於開始時間'
-    );
-
-    return;
-
-  }
-
-
-
-  button.disabled = true;
-
-  button.textContent =
-    '建立中...';
-
-
-  try {
-
-    const response =
-      await fetch(
-        API_URL,
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type':
-              'text/plain;charset=utf-8'
-          },
-
-          body: JSON.stringify({
-
-            action:
-              'createProduct',
-
-            idToken:
-              idToken,
-
-            product: {
-
-              productName:
-                productName,
-
-              price:
-                Number(price),
-
-              maxQty:
-                maxQty === ''
-                  ? 0
-                  : Number(maxQty),
-
-              description:
-                description,
-
-              startAt:
-                startAt,
-
-              endAt:
-                endAt,
-
-              options: []
-
-            }
-
-          })
-
-        }
+      await navigator.clipboard.writeText(
+        currentProductLink
       );
 
 
-    const result =
-      await response.json();
+      alert(
+        '團購連結已複製。'
+      );
+
+    } catch (error) {
+
+      /*
+       * Clipboard API 失敗時，
+       * 使用傳統 fallback。
+       */
+
+      const textarea =
+        document.createElement(
+          'textarea'
+        );
 
 
-    console.log(
-      'Create Product：',
-      result
-    );
+      textarea.value =
+        currentProductLink;
 
 
-    if (!result.success) {
+      document.body.appendChild(
+        textarea
+      );
 
-      throw new Error(
-        result.message ||
-        result.error ||
-        '建立團購失敗'
+
+      textarea.select();
+
+
+      try {
+
+        document.execCommand(
+          'copy'
+        );
+
+        alert(
+          '團購連結已複製。'
+        );
+
+      } catch (copyError) {
+
+        alert(
+          '無法自動複製，請手動複製連結。'
+        );
+
+      }
+
+
+      document.body.removeChild(
+        textarea
       );
 
     }
 
+  }
 
 
-    const productId =
-      result.product.productId;
+  /*************************************************
+   * 分享 LINE
+   *************************************************/
+
+  function shareProductLink() {
+
+    if (!currentProductLink) {
+      return;
+    }
 
 
-    currentProductLink =
-      window.location.origin +
-      window.location.pathname +
-      '?p=' +
-      encodeURIComponent(
-        productId
-      );
+    if (
+      typeof liff !== 'undefined' &&
+      liff.isApiAvailable('shareTargetPicker')
+    ) {
+
+      liff.shareTargetPicker([
+        {
+          type: 'text',
+          text:
+            '團購商品：' +
+            (
+              document.getElementById(
+                'createdProductName'
+              ).textContent
+            ) +
+            '\n\n' +
+            currentProductLink
+        }
+      ]);
+
+      return;
+
+    }
 
 
+    /*
+     * 如果 LINE WebView 不支援，
+     * 嘗試使用一般分享。
+     */
 
-    document.getElementById(
-      'resultProductName'
-    ).textContent =
-      result.product.productName;
+    if (
+      navigator.share
+    ) {
+
+      navigator.share({
+
+        title:
+          document.getElementById(
+            'createdProductName'
+          ).textContent,
+
+        text:
+          '團購連結',
+
+        url:
+          currentProductLink
+
+      });
+
+      return;
+
+    }
 
 
-    document.getElementById(
-      'resultProductId'
-    ).textContent =
-      productId;
+    alert(
+      '目前環境不支援直接分享，請複製團購連結。'
+    );
+
+  }
 
 
-    document.getElementById(
-      'productLink'
-    ).textContent =
+  /*************************************************
+   * 開啟剛建立的商品
+   *************************************************/
+
+  function openCreatedProduct() {
+
+    if (!currentProductLink) {
+      return;
+    }
+
+
+    window.location.href =
       currentProductLink;
 
+  }
+
+
+  /*************************************************
+   * 我的訂單
+   *
+   * 目前先做頁面骨架。
+   * 等 GAS getMyOrders 完成後接 API。
+   *************************************************/
+
+  function openMyOrders() {
+
+    showPage(
+      'myOrdersPage'
+    );
+
+
+    setOrdersUserInfo();
+
 
     document.getElementById(
-      'createSuccess'
+      'ordersContent'
+    ).innerHTML = `
+
+      <div class="info-box">
+        我的訂單功能正在接上後端 API。
+      </div>
+
+      <button
+        class="btn btn-secondary"
+        onclick="goBackFromOrders()"
+      >
+        返回
+      </button>
+
+    `;
+
+  }
+
+
+  /*************************************************
+   * 訂單返回
+   *************************************************/
+
+  function goBackFromOrders() {
+
+    if (currentProductId) {
+
+      showPage(
+        'productPage'
+      );
+
+      return;
+
+    }
+
+
+    if (
+      currentAdmin &&
+      currentAdmin.isAdmin
+    ) {
+
+      showPage(
+        'adminPage'
+      );
+
+    }
+
+  }
+
+
+  /*************************************************
+   * Admin User UI
+   *************************************************/
+
+  function setAdminUserInfo() {
+
+    if (!currentUser) {
+      return;
+    }
+
+
+    const name =
+      currentUser.displayName ||
+      'LINE 使用者';
+
+
+    document.getElementById(
+      'adminDisplayName'
+    ).textContent =
+      name;
+
+
+    document.getElementById(
+      'adminAvatar'
+    ).textContent =
+      getAvatarText(name);
+
+
+    const role =
+      currentAdmin &&
+      currentAdmin.role
+        ? currentAdmin.role
+        : 'ADMIN';
+
+
+    document.getElementById(
+      'adminRole'
+    ).textContent =
+      '管理員權限：' +
+      role;
+
+  }
+
+
+  /*************************************************
+   * Customer User UI
+   *************************************************/
+
+  function setCustomerUserInfo() {
+
+    if (!currentUser) {
+      return;
+    }
+
+
+    const name =
+      currentUser.displayName ||
+      'LINE 使用者';
+
+
+    document.getElementById(
+      'customerDisplayName'
+    ).textContent =
+      name;
+
+
+    document.getElementById(
+      'customerAvatar'
+    ).textContent =
+      getAvatarText(name);
+
+
+    document.getElementById(
+      'ordersDisplayName'
+    ).textContent =
+      name;
+
+
+    document.getElementById(
+      'ordersAvatar'
+    ).textContent =
+      getAvatarText(name);
+
+  }
+
+
+  /*************************************************
+   * Orders User UI
+   *************************************************/
+
+  function setOrdersUserInfo() {
+
+    if (!currentUser) {
+      return;
+    }
+
+
+    const name =
+      currentUser.displayName ||
+      'LINE 使用者';
+
+
+    document.getElementById(
+      'ordersDisplayName'
+    ).textContent =
+      name;
+
+
+    document.getElementById(
+      'ordersAvatar'
+    ).textContent =
+      getAvatarText(name);
+
+  }
+
+
+  /*************************************************
+   * Avatar
+   *************************************************/
+
+  function getAvatarText(name) {
+
+    if (!name) {
+      return '?';
+    }
+
+
+    return name
+      .trim()
+      .substring(0, 1);
+
+  }
+
+
+  /*************************************************
+   * Loading
+   *************************************************/
+
+  function showLoading(text) {
+
+    document.getElementById(
+      'loadingText'
+    ).textContent =
+      text || '載入中...';
+
+
+    document.getElementById(
+      'loadingPage'
     ).classList.remove(
       'hidden'
     );
 
 
-  } catch (error) {
-
-    console.error(
-      error
+    document.getElementById(
+      'errorPage'
+    ).classList.add(
+      'hidden'
     );
 
 
-    showCreateError(
-      error.message
+    document.getElementById(
+      'adminPage'
+    ).classList.add(
+      'hidden'
     );
 
 
-  } finally {
-
-    button.disabled = false;
-
-    button.textContent =
-      '建立團購';
-
-  }
-
-}
+    document.getElementById(
+      'productPage'
+    ).classList.add(
+      'hidden'
+    );
 
 
-
-function showCreateError(message) {
-
-  document.getElementById(
-    'createError'
-  ).textContent =
-    message;
-
-}
-
-
-async function copyProductLink() {
-
-  if (!currentProductLink) {
-
-    return;
+    document.getElementById(
+      'myOrdersPage'
+    ).classList.add(
+      'hidden'
+    );
 
   }
 
 
-  try {
+  /*************************************************
+   * Hide Loading
+   *************************************************/
 
-    await navigator.clipboard.writeText(
-      currentProductLink
+  function hideLoading() {
+
+    document.getElementById(
+      'loadingPage'
+    ).classList.add(
+      'hidden'
     );
 
+  }
+
+
+  /*************************************************
+   * 顯示頁面
+   *************************************************/
+
+  function showPage(pageId) {
+
+    document.getElementById(
+      'loadingPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'errorPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'adminPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'productPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'myOrdersPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      pageId
+    ).classList.remove(
+      'hidden'
+    );
+
+  }
+
+
+  /*************************************************
+   * Error
+   *************************************************/
+
+  function showError(message) {
+
+    document.getElementById(
+      'loadingPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'adminPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'productPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'myOrdersPage'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'errorPage'
+    ).classList.remove(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'errorMessage'
+    ).textContent =
+      message;
+
+  }
+
+
+  /*************************************************
+   * Create Product Error
+   *************************************************/
+
+  function showCreateError(message) {
+
+    document.getElementById(
+      'createProductMessage'
+    ).innerHTML = `
+
+      <div class="error-box">
+        ${escapeHtml(message)}
+      </div>
+
+    `;
+
+  }
+
+
+  /*************************************************
+   * Inline Error
+   *************************************************/
+
+  function showInlineError(
+    parentId,
+    message
+  ) {
+
+    const parent =
+      document.getElementById(
+        parentId
+      );
+
+
+    const oldError =
+      parent.querySelector(
+        '.inline-error'
+      );
+
+
+    if (oldError) {
+      oldError.remove();
+    }
+
+
+    const error =
+      document.createElement(
+        'div'
+      );
+
+
+    error.className =
+      'error-box inline-error';
+
+
+    error.style.marginTop =
+      '12px';
+
+
+    error.textContent =
+      message;
+
+
+    parent.prepend(error);
+
+  }
+
+
+  /*************************************************
+   * Status Text
+   *************************************************/
+
+  function getStatusText(status) {
+
+    switch (status) {
+
+      case 'OPEN':
+        return '🟢 開放訂購';
+
+      case 'DRAFT':
+        return '🟡 尚未開始';
+
+      case 'CLOSED':
+        return '⚪ 已截止';
+
+      case 'COMPLETED':
+        return '✓ 已完成';
+
+      default:
+        return status || '未知';
+
+    }
+
+  }
+
+
+  /*************************************************
+   * Money
+   *************************************************/
+
+  function formatMoney(value) {
+
+    const number =
+      Number(value || 0);
+
+
+    return number.toLocaleString(
+      'zh-TW'
+    );
+
+  }
+
+
+  /*************************************************
+   * Date Time
+   *************************************************/
+
+  function formatDateTime(value) {
+
+    if (!value) {
+      return '';
+    }
+
+
+    const date =
+      new Date(value);
+
+
+    if (isNaN(date.getTime())) {
+      return String(value);
+    }
+
+
+    return date.toLocaleString(
+      'zh-TW',
+      {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    );
+
+  }
+
+
+  /*************************************************
+   * HTML Escape
+   *************************************************/
+
+  function escapeHtml(value) {
+
+    return String(value)
+      .replace(
+        /&/g,
+        '&amp;'
+      )
+      .replace(
+        /</g,
+        '&lt;'
+      )
+      .replace(
+        />/g,
+        '&gt;'
+      )
+      .replace(
+        /"/g,
+        '&quot;'
+      )
+      .replace(
+        /'/g,
+        '&#039;'
+      );
+
+  }
+
+
+  /*************************************************
+   * Coming Soon
+   *************************************************/
+
+  function showComingSoon(name) {
 
     alert(
-      '團購連結已複製'
-    );
-
-
-  } catch (error) {
-
-    alert(
-      '複製失敗，請手動複製'
+      name +
+      '功能尚未接後端 API。'
     );
 
   }
 
-}
+
+  /*************************************************
+   * Debug
+   *************************************************/
+
+  function debugLog(message) {
+
+    console.log(message);
 
 
-init();
+    const debug =
+      document.getElementById(
+        'debug'
+      );
+
+
+    if (!debug) {
+      return;
+    }
+
+
+    debug.textContent +=
+      '\n' +
+      message;
+
+  }
+
+
+  /*************************************************
+   * 啟動
+   *************************************************/
+
+  window.addEventListener(
+    'load',
+    init
+  );
 
 </script>
 
-
 </body>
-
 </html>
