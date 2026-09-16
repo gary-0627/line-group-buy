@@ -57,9 +57,30 @@
             'Content-Type': 'text/plain;charset=utf-8'
           },
           body: JSON.stringify({
-            action: 'verifyAdmin',
-            idToken: idToken
-          })
+
+  action: 'createProduct',
+
+  idToken: idToken,
+
+  product: {
+
+    productName: '日本麝香葡萄',
+
+    price: 699,
+
+    description: '日本麝香葡萄團購測試',
+
+    maxQty: 100,
+
+    startAt: '2026-09-16T18:00:00+08:00',
+
+    endAt: '2026-09-20T23:59:00+08:00',
+
+    options: []
+
+  }
+
+})
         });
         
         const result = await response.json();
