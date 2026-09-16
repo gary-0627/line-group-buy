@@ -10,119 +10,850 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>天增團購系統 - LINE</title>
+  <title>天增團購系統</title>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .user-info {
+      background: white;
+      padding: 14px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #06c755;
+      color: white;
+    }
+
+    .secondary {
+      background: #eee;
+      color: #333;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .success {
+      background: #e8f8ed;
+      padding: 16px;
+      border-radius: 10px;
+      margin-top: 16px;
+    }
+
+    .link-box {
+      word-break: break-all;
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+
+    .error {
+      color: #d00;
+      margin-top: 10px;
+    }
+
+  </style>
+
 </head>
+
 
 <body>
 
-  <h1>LINE 團購系統</h1>
 
-  <p id="status">LINE 登入中...</p>
+<div class="container">
 
-  <script>
 
-    const LIFF_ID = '2011633639-yuSTNpAR';
+  <h1>天增團購系統</h1>
 
-    const API_URL =
-      'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
 
-    async function init() {
-      try {
-        await liff.init({ liffId: LIFF_ID });
-    
-        console.log('LIFF 初始化成功');
-        console.log('LIFF logged in:', liff.isLoggedIn());
-    
-        if (!liff.isLoggedIn()) {
-          console.log('尚未登入 LINE，開始登入');
-          liff.login();
-          return;
-        }
-    
-        const idToken = liff.getIDToken();
-    
-        console.log('ID Token exists:', !!idToken);
-        console.log('ID Token:', idToken);
-    
-        if (!idToken) {
-          throw new Error('無法取得 LINE ID Token，請確認 LIFF Scope 是否包含 openid');
-        }
-    
-        const response = await fetch(API_URL, {
+  <div
+    id="status"
+    class="card"
+  >
+    LINE 登入中...
+  </div>
+
+
+  <div
+    id="userInfo"
+    class="user-info hidden"
+  >
+
+    <strong id="displayName"></strong>
+
+    <br>
+
+    <small id="role"></small>
+
+  </div>
+
+
+  <!-- =================================================
+       Admin 首頁
+       ================================================= -->
+
+  <div
+    id="adminHome"
+    class="card hidden"
+  >
+
+    <h2>管理後台</h2>
+
+    <button
+      class="primary"
+      onclick="showCreateProduct()"
+    >
+      ＋ 新增團購
+    </button>
+
+  </div>
+
+
+  <!-- =================================================
+       新增團購
+       ================================================= -->
+
+  <div
+    id="createProductPage"
+    class="card hidden"
+  >
+
+    <h2>新增團購</h2>
+
+
+    <label>
+      商品名稱 *
+    </label>
+
+    <input
+      id="productName"
+      type="text"
+      placeholder="例如：日本麝香葡萄"
+    >
+
+
+    <label>
+      商品價格 *
+    </label>
+
+    <input
+      id="price"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="699"
+    >
+
+
+    <label>
+      最大訂購數量
+    </label>
+
+    <input
+      id="maxQty"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="100"
+    >
+
+
+    <label>
+      開始時間 *
+    </label>
+
+    <input
+      id="startAt"
+      type="datetime-local"
+    >
+
+
+    <label>
+      截止時間 *
+    </label>
+
+    <input
+      id="endAt"
+      type="datetime-local"
+    >
+
+
+    <label>
+      商品說明
+    </label>
+
+    <textarea
+      id="description"
+      placeholder="商品說明..."
+    ></textarea>
+
+
+    <button
+      id="createButton"
+      class="primary"
+      onclick="createProduct()"
+    >
+      建立團購
+    </button>
+
+
+    <button
+      class="secondary"
+      onclick="showAdminHome()"
+      style="margin-top:10px;"
+    >
+      返回
+    </button>
+
+
+    <div
+      id="createError"
+      class="error"
+    ></div>
+
+
+    <!-- =================================================
+         建立成功
+         ================================================= -->
+
+    <div
+      id="createSuccess"
+      class="success hidden"
+    >
+
+      <strong>
+        團購建立成功
+      </strong>
+
+      <p>
+        商品：
+        <span id="resultProductName"></span>
+      </p>
+
+      <p>
+        團購編號：
+        <span id="resultProductId"></span>
+      </p>
+
+      <div
+        id="productLink"
+        class="link-box"
+      ></div>
+
+
+      <button
+        class="primary"
+        onclick="copyProductLink()"
+      >
+        複製團購連結
+      </button>
+
+    </div>
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+
+const LIFF_ID =
+  '2011633639-yuSTNpAR';
+
+
+const API_URL =
+  '你的 GAS Web App URL';
+
+
+let idToken = null;
+
+let currentUser = null;
+
+let currentAdmin = null;
+
+let currentProductLink = null;
+
+
+
+async function init() {
+
+  try {
+
+
+    await liff.init({
+      liffId: LIFF_ID
+    });
+
+
+    console.log(
+      'LIFF 初始化成功'
+    );
+
+
+
+    if (!liff.isLoggedIn()) {
+
+      liff.login();
+
+      return;
+
+    }
+
+
+
+    idToken =
+      liff.getIDToken();
+
+
+    if (!idToken) {
+
+      throw new Error(
+        '無法取得 LINE ID Token'
+      );
+
+    }
+
+
+
+    const response =
+      await fetch(
+        API_URL,
+        {
           method: 'POST',
+
           headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
+            'Content-Type':
+              'text/plain;charset=utf-8'
           },
+
           body: JSON.stringify({
 
-  action: 'createProduct',
+            action:
+              'verifyAdmin',
 
-  idToken: idToken,
+            idToken:
+              idToken
 
-  product: {
+          })
+        }
+      );
 
-    productName: '日本麝香葡萄',
 
-    price: 699,
+    const result =
+      await response.json();
 
-    description: '日本麝香葡萄團購測試',
 
-    maxQty: 100,
+    console.log(
+      'Admin 驗證：',
+      result
+    );
 
-    startAt: '2026-09-16T18:00:00+08:00',
 
-    endAt: '2026-09-20T23:59:00+08:00',
+    if (!result.success) {
 
-    options: []
+      throw new Error(
+        result.message ||
+        result.error ||
+        'Admin 驗證失敗'
+      );
+
+    }
+
+
+    currentUser =
+      result.user;
+
+
+    currentAdmin =
+      result.admin;
+
+
+
+    if (!currentAdmin.isAdmin) {
+
+      document.getElementById(
+        'status'
+      ).textContent =
+        'LINE 登入成功，但你不是管理員';
+
+      return;
+
+    }
+
+
+
+    document.getElementById(
+      'status'
+    ).classList.add(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'userInfo'
+    ).classList.remove(
+      'hidden'
+    );
+
+
+    document.getElementById(
+      'displayName'
+    ).textContent =
+      currentUser.displayName;
+
+
+    document.getElementById(
+      'role'
+    ).textContent =
+      '權限：' +
+      currentAdmin.role;
+
+
+    showAdminHome();
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    document.getElementById(
+      'status'
+    ).textContent =
+      '登入失敗：' +
+      error.message;
 
   }
 
-})
-        });
-        
-        const result = await response.json();
-        
-        console.log('Admin API 回應：', result);
-        
-        if (!result.success) {
-          throw new Error(
-            result.message ||
-            result.error ||
-            'Admin 驗證失敗'
-          );
-        }
-        
-        if (!result.admin.isAdmin) {
-        
-          document.getElementById('status').textContent =
-            'LINE 登入成功，但你不是管理員';
-        
-          return;
-        }
-        
-        document.getElementById('status').textContent =
-          '管理員登入成功：' +
-          result.user.displayName +
-          ' (' +
-          result.admin.role +
-          ')';
-        
-        console.log('管理員：', result.admin);
-    
-      } catch (error) {
-        console.error('錯誤：', error);
-    
-        document.getElementById('status').textContent =
-          'LINE 登入失敗：' + error.message;
-      }
-    }
-    
-    init();
+}
 
-  </script>
+
+
+function showAdminHome() {
+
+  document.getElementById(
+    'adminHome'
+  ).classList.remove(
+    'hidden'
+  );
+
+
+  document.getElementById(
+    'createProductPage'
+  ).classList.add(
+    'hidden'
+  );
+
+}
+
+
+
+function showCreateProduct() {
+
+  document.getElementById(
+    'adminHome'
+  ).classList.add(
+    'hidden'
+  );
+
+
+  document.getElementById(
+    'createProductPage'
+  ).classList.remove(
+    'hidden'
+  );
+
+
+  document.getElementById(
+    'createSuccess'
+  ).classList.add(
+    'hidden'
+  );
+
+
+  document.getElementById(
+    'createError'
+  ).textContent = '';
+
+}
+
+
+
+async function createProduct() {
+
+  const button =
+    document.getElementById(
+      'createButton'
+    );
+
+
+  const productName =
+    document.getElementById(
+      'productName'
+    ).value.trim();
+
+
+  const price =
+    document.getElementById(
+      'price'
+    ).value;
+
+
+  const maxQty =
+    document.getElementById(
+      'maxQty'
+    ).value;
+
+
+  const startAt =
+    document.getElementById(
+      'startAt'
+    ).value;
+
+
+  const endAt =
+    document.getElementById(
+      'endAt'
+    ).value;
+
+
+  const description =
+    document.getElementById(
+      'description'
+    ).value.trim();
+
+
+
+  if (!productName) {
+
+    showCreateError(
+      '請輸入商品名稱'
+    );
+
+    return;
+
+  }
+
+
+  if (
+    price === '' ||
+    Number(price) < 0
+  ) {
+
+    showCreateError(
+      '請輸入正確價格'
+    );
+
+    return;
+
+  }
+
+
+  if (!startAt) {
+
+    showCreateError(
+      '請選擇開始時間'
+    );
+
+    return;
+
+  }
+
+
+  if (!endAt) {
+
+    showCreateError(
+      '請選擇截止時間'
+    );
+
+    return;
+
+  }
+
+
+  if (
+    new Date(endAt) <=
+    new Date(startAt)
+  ) {
+
+    showCreateError(
+      '截止時間必須晚於開始時間'
+    );
+
+    return;
+
+  }
+
+
+
+  button.disabled = true;
+
+  button.textContent =
+    '建立中...';
+
+
+  try {
+
+    const response =
+      await fetch(
+        API_URL,
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'text/plain;charset=utf-8'
+          },
+
+          body: JSON.stringify({
+
+            action:
+              'createProduct',
+
+            idToken:
+              idToken,
+
+            product: {
+
+              productName:
+                productName,
+
+              price:
+                Number(price),
+
+              maxQty:
+                maxQty === ''
+                  ? 0
+                  : Number(maxQty),
+
+              description:
+                description,
+
+              startAt:
+                startAt,
+
+              endAt:
+                endAt,
+
+              options: []
+
+            }
+
+          })
+
+        }
+      );
+
+
+    const result =
+      await response.json();
+
+
+    console.log(
+      'Create Product：',
+      result
+    );
+
+
+    if (!result.success) {
+
+      throw new Error(
+        result.message ||
+        result.error ||
+        '建立團購失敗'
+      );
+
+    }
+
+
+
+    const productId =
+      result.product.productId;
+
+
+    currentProductLink =
+      window.location.origin +
+      window.location.pathname +
+      '?p=' +
+      encodeURIComponent(
+        productId
+      );
+
+
+
+    document.getElementById(
+      'resultProductName'
+    ).textContent =
+      result.product.productName;
+
+
+    document.getElementById(
+      'resultProductId'
+    ).textContent =
+      productId;
+
+
+    document.getElementById(
+      'productLink'
+    ).textContent =
+      currentProductLink;
+
+
+    document.getElementById(
+      'createSuccess'
+    ).classList.remove(
+      'hidden'
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    showCreateError(
+      error.message
+    );
+
+
+  } finally {
+
+    button.disabled = false;
+
+    button.textContent =
+      '建立團購';
+
+  }
+
+}
+
+
+
+function showCreateError(message) {
+
+  document.getElementById(
+    'createError'
+  ).textContent =
+    message;
+
+}
+
+
+async function copyProductLink() {
+
+  if (!currentProductLink) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await navigator.clipboard.writeText(
+      currentProductLink
+    );
+
+
+    alert(
+      '團購連結已複製'
+    );
+
+
+  } catch (error) {
+
+    alert(
+      '複製失敗，請手動複製'
+    );
+
+  }
+
+}
+
+
+init();
+
+</script>
+
 
 </body>
 
