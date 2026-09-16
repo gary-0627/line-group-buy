@@ -39,11 +39,11 @@
 
       } catch (error) {
 
-        console.error(error);
-
+        console.error('LIFF ERROR:', error);
+      
         document.getElementById('status').textContent =
-          'LIFF 初始化失敗';
-
+          'LIFF 初始化失敗：' + error.message;
+      
       }
 
     }
