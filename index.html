@@ -688,7 +688,7 @@
     const LIFF_ID = '2011633639-yuSTNpAR';
 
     // ================================================
-    // ★★★ 請改成你的 GAS Web App URL ★★★
+    // GAS Web App URL 
     // ================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbxpNY5FuKMsL8GClN9oH_uznXM_o7HLkPPQcZSvVBbGCLvIdXOVB9ptgf1VGsrj66GE8A/exec';
 
@@ -701,7 +701,6 @@
     let currentAdmin = null;
     let currentProduct = null;
     let orderQuantity = 1;
-    let currentQuantity = 1;
 
 
     /*************************************************
@@ -748,27 +747,6 @@
         return '-';
       }
     
-      return date.toLocaleString('zh-TW', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-
-
-    function formatDate(value) {
-      if (!value) {
-        return '-';
-      }
-
-      const date = new Date(value);
-
-      if (isNaN(date.getTime())) {
-        return '-';
-      }
-
       return date.toLocaleString('zh-TW', {
         year: 'numeric',
         month: '2-digit',
@@ -1229,7 +1207,7 @@
     async function loadProduct(productId) {
       console.log('[PRODUCT] 開始載入商品：', productId);
     
-      setLoading(true, '正在載入商品...');
+      setLoading('正在載入商品...');
     
       try {
         const result = await apiRequest({
@@ -1265,29 +1243,64 @@
 
 
     function renderProductError(message) {
-
+    
       const app = document.getElementById('app');
     
       app.innerHTML = `
-        <div class="page error-page">
     
-          <div class="error-icon">
-            ⚠️
+        <div class="container">
+    
+          <div class="card">
+    
+            <div
+              style="
+                text-align:center;
+                padding:20px 0;
+              "
+            >
+    
+              <div
+                style="
+                  font-size:42px;
+                  margin-bottom:12px;
+                "
+              >
+                ⚠️
+              </div>
+    
+              <div
+                style="
+                  font-size:20px;
+                  font-weight:700;
+                  margin-bottom:10px;
+                "
+              >
+                無法載入團購
+              </div>
+    
+              <div
+                style="
+                  color:#777;
+                  line-height:1.6;
+                  margin-bottom:20px;
+                "
+              >
+                ${escapeHtml(message || '找不到此團購')}
+              </div>
+    
+              <button
+                class="button button-secondary"
+                onclick="showMyOrdersPage()"
+              >
+                查看我的訂單
+              </button>
+    
+            </div>
+    
           </div>
     
-          <h2>無法載入團購</h2>
-    
-          <p>
-            ${escapeHtml(message || '找不到此團購')}
-          </p>
-    
-          <button
-            class="secondary-button"
-            onclick="showMyOrdersPage()">
-            查看我的訂單
-          </button>
-    
         </div>
+    
       `;
     }
 
@@ -1746,6 +1759,20 @@
         ).value.trim();
 
 
+      const maxQtyValue = Number(maxQty);
+
+        if (
+          maxQty !== '' &&
+          (
+            !Number.isInteger(maxQtyValue) ||
+            maxQtyValue < 0
+          )
+        ) {
+          alert('最大訂購數量必須是 0 或正整數');
+          return;
+        }
+
+
       if (!productName) {
 
         alert(
@@ -1755,10 +1782,11 @@
         return;
       }
 
-
+      const priceNumber = Number(price);
       if (
         price === '' ||
-        Number(price) < 0
+        !Number.isFinite(priceNumber) ||
+        priceNumber < 0
       ) {
 
         alert(
@@ -1835,7 +1863,7 @@
               maxQty:
                 maxQty === ''
                   ? 0
-                  : Number(maxQty),
+                  : maxQtyValue,
 
               startAt:
                 startAt,
@@ -1867,6 +1895,9 @@
           '[PRODUCT] 建立成功:',
           result.product
         );
+
+
+        currentProduct = result.product;
 
 
         renderCreateProductSuccess(
@@ -2009,23 +2040,6 @@
     /*************************************************
      * Product Link
      *************************************************/
-
-    function getCurrentProductLink() {
-
-      if (!currentProduct) {
-        return '';
-      }
-
-
-      return (
-        window.location.origin +
-        window.location.pathname +
-        '?p=' +
-        encodeURIComponent(
-          currentProduct.productId
-        )
-      );
-    }
 
 
     function getProductLinkFromPage() {
@@ -2187,21 +2201,22 @@
      *************************************************/
 
     function renderProductPage(product) {
+    
       const app = document.getElementById('app');
     
       const isOpen = product.status === 'OPEN';
     
       let statusText = '尚未開始';
-      let statusClass = 'draft';
+      let statusClass = 'status-draft';
     
       if (product.status === 'OPEN') {
         statusText = '訂購中';
-        statusClass = 'open';
+        statusClass = 'status-open';
       }
     
       if (product.status === 'CLOSED') {
         statusText = '已截止';
-        statusClass = 'closed';
+        statusClass = 'status-closed';
       }
     
       const maxQtyText =
@@ -2210,18 +2225,23 @@
           : '不限數量';
     
       app.innerHTML = `
-        <div class="page customer-page">
     
-          <div class="product-card">
+        <div class="container">
+    
+          ${renderCustomerUserCard()}
+    
+          <div class="card">
     
             <div class="product-status ${statusClass}">
               ${statusText}
             </div>
     
-            <h1>${escapeHtml(product.productName)}</h1>
+            <h1 class="product-name">
+              ${escapeHtml(product.productName)}
+            </h1>
     
             <div class="product-price">
-              NT$ ${Number(product.price).toLocaleString()}
+              NT$ ${formatPrice(product.price)}
             </div>
     
             ${
@@ -2234,14 +2254,19 @@
                 : ''
             }
     
-            <div class="product-meta">
+            <div>
     
               ${
                 product.startAt
                   ? `
-                    <div>
-                      開始時間：
-                      ${formatDateTime(product.startAt)}
+                    <div class="product-info-row">
+                      <span class="product-info-label">
+                        開始時間
+                      </span>
+    
+                      <span class="product-info-value">
+                        ${formatDateTime(product.startAt)}
+                      </span>
                     </div>
                   `
                   : ''
@@ -2250,16 +2275,27 @@
               ${
                 product.endAt
                   ? `
-                    <div>
-                      截止時間：
-                      ${formatDateTime(product.endAt)}
+                    <div class="product-info-row">
+                      <span class="product-info-label">
+                        截止時間
+                      </span>
+    
+                      <span class="product-info-value">
+                        ${formatDateTime(product.endAt)}
+                      </span>
                     </div>
                   `
                   : ''
               }
     
-              <div>
-                ${maxQtyText}
+              <div class="product-info-row">
+                <span class="product-info-label">
+                  訂購限制
+                </span>
+    
+                <span class="product-info-value">
+                  ${maxQtyText}
+                </span>
               </div>
     
             </div>
@@ -2269,13 +2305,14 @@
           ${
             isOpen
               ? renderOrderForm(product)
-              : renderClosedProduct(product)
+              : renderUnavailableProduct(product)
           }
     
         </div>
       `;
     
       if (isOpen) {
+        orderQuantity = 1;
         updateOrderTotal();
       }
     }
@@ -2332,45 +2369,75 @@
           : 999;
     
       return `
-        <div class="order-card">
     
-          <h2>我要訂購</h2>
+        <div class="card">
     
-          <div class="quantity-row">
+          <div class="card-title">
+            我要訂購
+          </div>
     
-            <button
-              type="button"
-              onclick="changeQuantity(-1)">
-              −
-            </button>
+          <div class="quantity-section">
     
-            <span id="quantity">1</span>
+            <label class="field-label">
+              訂購數量
+            </label>
     
-            <button
-              type="button"
-              onclick="changeQuantity(1)">
-              ＋
-            </button>
+            <div class="quantity-control">
+    
+              <button
+                type="button"
+                class="quantity-button"
+                onclick="changeQuantity(-1)"
+              >
+                −
+              </button>
+    
+              <div
+                id="quantity"
+                class="quantity-value"
+              >
+                1
+              </div>
+    
+              <button
+                type="button"
+                class="quantity-button"
+                onclick="changeQuantity(1)"
+              >
+                ＋
+              </button>
+    
+            </div>
     
           </div>
     
-          <div class="order-total">
-            總金額：
-            <strong id="orderTotal">
-              NT$ ${Number(product.price).toLocaleString()}
+          <div class="total-box">
+    
+            <span class="total-label">
+              總金額
+            </span>
+    
+            <strong
+              id="orderTotal"
+              class="total-price"
+            >
+              NT$ ${formatPrice(product.price)}
             </strong>
+    
           </div>
     
           <button
             id="submitOrderButton"
-            class="primary-button"
-            onclick="submitOrder()">
+            class="button button-primary"
+            onclick="submitOrder()"
+          >
             確認訂購
           </button>
     
           <button
-            class="secondary-button"
-            onclick="showMyOrdersPage()">
+            class="button button-secondary"
+            onclick="showMyOrdersPage()"
+          >
             查看我的訂單
           </button>
     
@@ -2383,35 +2450,93 @@
      * Closed Product
      *************************************************/
 
-    function renderClosedProduct(product) {
+    function renderUnavailableProduct(product) {
     
-      return `
-        <div class="closed-card">
+      const isDraft = product.status === 'DRAFT';
     
-          <div class="closed-icon">
-            🔒
-          </div>
+      const title = isDraft
+        ? '團購尚未開始'
+        : '本團購已截止';
     
-          <h2>本團購已截止</h2>
+      const icon = isDraft
+        ? '⏳'
+        : '🔒';
     
-          ${
-            product.endAt
+      const timeText = isDraft
+        ? (
+            product.startAt
               ? `
-                <p>
-                  截止時間：
-                  ${formatDateTime(product.endAt)}
-                </p>
+                <div
+                  style="
+                    color:#777;
+                    margin-bottom:20px;
+                  "
+                >
+                  開始時間：
+                  ${formatDateTime(product.startAt)}
+                </div>
               `
               : ''
-          }
+          )
+        : (
+            product.endAt
+              ? `
+                <div
+                  style="
+                    color:#777;
+                    margin-bottom:20px;
+                  "
+                >
+                  截止時間：
+                  ${formatDateTime(product.endAt)}
+                </div>
+              `
+              : ''
+          );
     
-          <button
-            class="secondary-button"
-            onclick="showMyOrdersPage()">
-            查看我的訂單
-          </button>
+      return `
+    
+        <div class="card">
+    
+          <div
+            style="
+              text-align:center;
+              padding:20px 0;
+            "
+          >
+    
+            <div
+              style="
+                font-size:42px;
+                margin-bottom:12px;
+              "
+            >
+              ${icon}
+            </div>
+    
+            <div
+              style="
+                font-size:20px;
+                font-weight:700;
+                margin-bottom:8px;
+              "
+            >
+              ${title}
+            </div>
+    
+            ${timeText}
+    
+            <button
+              class="button button-secondary"
+              onclick="showMyOrdersPage()"
+            >
+              查看我的訂單
+            </button>
+    
+          </div>
     
         </div>
+    
       `;
     }
 
@@ -2472,42 +2597,6 @@
     }
 
 
-    function updateQuantityUI() {
-
-      const quantityElement =
-        document.getElementById(
-          'quantityValue'
-        );
-
-
-      const totalElement =
-        document.getElementById(
-          'totalPrice'
-        );
-
-
-      if (quantityElement) {
-
-        quantityElement.textContent =
-          currentQuantity;
-      }
-
-
-      if (totalElement) {
-
-        const total =
-          Number(
-            currentProduct.price || 0
-          ) *
-          currentQuantity;
-
-
-        totalElement.textContent =
-          'NT$ ' +
-          formatPrice(total);
-      }
-    }
-
 
     /*************************************************
      * Create Order
@@ -2539,6 +2628,15 @@
           '此團購目前無法訂購'
         );
 
+        return;
+      }
+
+      
+      if (
+        !Number.isInteger(orderQuantity) ||
+        orderQuantity < 1
+      ) {
+        alert('訂購數量錯誤');
         return;
       }
 
@@ -2591,7 +2689,7 @@
               currentProduct.productId,
 
             quantity:
-              currentQuantity,
+              orderQuantity,
 
             options:
               [],
@@ -2716,7 +2814,7 @@
                 </span>
 
                 <span class="product-info-value">
-                  ${order.quantity || currentQuantity}
+                  ${order.quantity || orderQuantity}
                 </span>
 
               </div>
@@ -2733,7 +2831,7 @@
                     order.totalPrice ||
                     (
                       currentProduct.price *
-                      currentQuantity
+                      orderQuantity
                     )
                   )}
                 </span>
@@ -3037,7 +3135,7 @@
                 </span>
 
                 <span class="product-info-value">
-                  ${formatDate(
+                  ${formatDateTime(
                     order.createdAt
                   )}
                 </span>
@@ -3088,7 +3186,7 @@
      *************************************************/
 
     async function showMyProductsPage() {
-      setLoading(true, '正在載入我的團購...');
+      setLoading('正在載入我的團購...');
     
       try {
         const idToken = liff.getIDToken();
@@ -3120,112 +3218,197 @@
 
 
     function renderMyProductsPage(products) {
+    
       const app = document.getElementById('app');
     
       let html = `
-        <div class="page">
-          <div class="page-header">
-            <button onclick="renderAdminHome()">←</button>
-            <h2>我的團購</h2>
+    
+        <div class="container">
+    
+          ${renderUserCard()}
+    
+          <button
+            class="back-button"
+            onclick="renderAdminHome()"
+          >
+            ← 返回管理首頁
+          </button>
+    
+          <div class="header">
+    
+            <h1 class="header-title">
+              我的團購
+            </h1>
+    
+            <div class="header-subtitle">
+              查看與管理建立的團購
+            </div>
+    
           </div>
       `;
     
-      if (products.length === 0) {
+      if (!products.length) {
+    
         html += `
-          <div class="empty-state">
-            <div>目前沒有團購</div>
+    
+          <div class="card">
+    
+            <div
+              style="
+                text-align:center;
+                color:#777;
+                padding:30px 10px;
+              "
+            >
+              目前沒有團購
+            </div>
+    
           </div>
+    
         `;
     
-        html += `</div>`;
-        app.innerHTML = html;
-        return;
+      } else {
+    
+        products.forEach(function(product) {
+    
+          let statusText = '尚未開始';
+          let statusClass = 'status-draft';
+    
+          if (product.status === 'OPEN') {
+            statusText = '進行中';
+            statusClass = 'status-open';
+          }
+    
+          if (product.status === 'CLOSED') {
+            statusText = '已截止';
+            statusClass = 'status-closed';
+          }
+    
+          const limitText =
+            product.maxQty > 0
+              ? `${product.totalQuantity} / ${product.maxQty}`
+              : `${product.totalQuantity}`;
+    
+          html += `
+    
+            <div class="card">
+    
+              <div class="product-status ${statusClass}">
+                ${statusText}
+              </div>
+    
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:12px;
+                  margin-bottom:12px;
+                "
+              >
+    
+                <div
+                  style="
+                    font-size:20px;
+                    font-weight:700;
+                  "
+                >
+                  ${escapeHtml(product.productName)}
+                </div>
+    
+                <div
+                  style="
+                    color:#e11d48;
+                    font-size:18px;
+                    font-weight:700;
+                    white-space:nowrap;
+                  "
+                >
+                  NT$ ${formatPrice(product.price)}
+                </div>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  訂單數
+                </span>
+    
+                <span class="product-info-value">
+                  ${product.orderCount}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  訂購數量
+                </span>
+    
+                <span class="product-info-value">
+                  ${limitText}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  截止時間
+                </span>
+    
+                <span class="product-info-value">
+                  ${formatDateTime(product.endAt)}
+                </span>
+    
+              </div>
+    
+              <div style="margin-top:16px;">
+    
+                <button
+                  class="button button-primary"
+                  onclick="showProductOrders('${escapeJs(product.productId)}')"
+                >
+                  查看訂單
+                </button>
+    
+                ${
+                  product.status === 'OPEN'
+                    ? `
+                      <button
+                        class="button button-danger"
+                        onclick="closeProduct(
+                          '${escapeJs(product.productId)}',
+                          '${escapeJs(product.productName)}'
+                        )"
+                      >
+                        關閉團購
+                      </button>
+                    `
+                    : ''
+                }
+    
+              </div>
+    
+            </div>
+    
+          `;
+        });
       }
     
-      products.forEach(function(product) {
+      html += `
     
-        let statusText = '草稿';
-        let statusClass = 'draft';
+        </div>
     
-        if (product.status === 'OPEN') {
-          statusText = '進行中';
-          statusClass = 'open';
-        }
-    
-        if (product.status === 'CLOSED') {
-          statusText = '已截止';
-          statusClass = 'closed';
-        }
-    
-        const limitText =
-          product.maxQty > 0
-            ? `${product.totalQuantity} / ${product.maxQty}`
-            : `${product.totalQuantity}`;
-    
-        html += `
-          <div class="product-card">
-    
-            <div class="product-card-header">
-              <div>
-                <h3>${escapeHtml(product.productName)}</h3>
-                <span class="status ${statusClass}">
-                  ${statusText}
-                </span>
-              </div>
-    
-              <div class="price">
-                NT$ ${product.price}
-              </div>
-            </div>
-    
-            <div class="product-info">
-              <div>
-                訂單數：${product.orderCount}
-              </div>
-    
-              <div>
-                訂購數量：${limitText}
-              </div>
-    
-              <div>
-                截止：
-                ${formatDateTime(product.endAt)}
-              </div>
-            </div>
-    
-            <div class="product-actions">
-    
-              <button
-                onclick="showProductOrders('${product.productId}')">
-                查看訂單
-              </button>
-    
-              ${
-                product.status === 'OPEN'
-                  ? `
-                    <button
-                      class="danger"
-                      onclick="closeProduct('${product.productId}', '${escapeJs(product.productName)}')">
-                      關閉團購
-                    </button>
-                  `
-                  : ''
-              }
-    
-            </div>
-    
-          </div>
-        `;
-      });
-    
-      html += `</div>`;
+      `;
     
       app.innerHTML = html;
     }
 
-
     async function closeProduct(productId, productName) {
-
+      
       const confirmed = confirm(
         '確定要關閉「' + productName + '」嗎？\n\n' +
         '關閉後將無法再接受新的訂單。'
@@ -3235,10 +3418,14 @@
         return;
       }
     
-      setLoading(true, '正在關閉團購...');
+      setLoading('正在關閉團購...');
     
       try {
         const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          throw new Error('無法取得 LINE ID Token');
+        }
     
         const result = await apiRequest({
           action: 'closeProduct',
