@@ -398,6 +398,23 @@
       border-radius: 12px;
     }
 
+    .order-status-editor {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+    
+    .order-status-editor label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .order-status-editor .form-select {
+      width: 100%;
+    }
+
     .total-label {
       color: #555;
     }
@@ -735,6 +752,34 @@
       return number.toLocaleString('zh-TW', {
         maximumFractionDigits: 2
       });
+    }
+
+
+    function getOrderStatusLabel(status) {
+
+      const labels = {
+    
+        PENDING: '待處理',
+    
+        CONFIRMED: '已確認',
+    
+        COMPLETED: '已完成',
+    
+        CANCELLED: '已取消'
+    
+      };
+    
+    
+      return (
+        labels[
+          String(status || '')
+            .trim()
+            .toUpperCase()
+        ] ||
+        status ||
+        '-'
+      );
+    
     }
 
 
@@ -3470,6 +3515,209 @@
     }
 
 
+    async function updateOrderStatus(
+      orderId,
+      status,
+      selectElement
+    ) {
+    
+      if (!orderId || !status) {
+    
+        alert(
+          '缺少訂單編號或訂單狀態'
+        );
+    
+        return;
+    
+      }
+    
+    
+      const normalizedStatus =
+        String(status)
+          .trim()
+          .toUpperCase();
+    
+    
+      const statusLabel =
+        getOrderStatusLabel(
+          normalizedStatus
+        );
+    
+    
+      const confirmed =
+        confirm(
+          '確定要將此訂單狀態改為「' +
+          statusLabel +
+          '」嗎？'
+        );
+    
+    
+      /* =================================================
+       * 使用者取消
+       * ================================================= */
+    
+      if (!confirmed) {
+    
+        /*
+         * 重新載入目前訂單頁，
+         * 讓 select 回到資料庫實際狀態
+         */
+    
+        if (
+          window.currentProductId
+        ) {
+    
+          await showProductOrders(
+            window.currentProductId
+          );
+    
+        }
+    
+        return;
+    
+      }
+    
+    
+      setLoading(
+        '正在更新訂單狀態...'
+      );
+    
+    
+      try {
+    
+        /* =================================================
+         * LINE ID Token
+         * ================================================= */
+    
+        const idToken =
+          liff.getIDToken();
+    
+    
+        if (!idToken) {
+    
+          throw new Error(
+            '無法取得 LINE ID Token'
+          );
+    
+        }
+    
+    
+        /* =================================================
+         * API
+         * ================================================= */
+    
+        const result =
+          await apiRequest({
+    
+            action:
+              'updateOrderStatus',
+    
+            idToken:
+              idToken,
+    
+            orderId:
+              orderId,
+    
+            status:
+              normalizedStatus
+    
+          });
+    
+    
+        console.log(
+          '[UPDATE ORDER STATUS] API 回應:',
+          result
+        );
+    
+    
+        /* =================================================
+         * API 失敗
+         * ================================================= */
+    
+        if (!result.success) {
+    
+          throw new Error(
+    
+            result.message ||
+            result.error ||
+            '更新訂單狀態失敗'
+    
+          );
+    
+        }
+    
+    
+        /* =================================================
+         * 成功
+         * ================================================= */
+    
+        alert(
+          '訂單狀態已更新為「' +
+          getOrderStatusLabel(
+            result.status ||
+            normalizedStatus
+          ) +
+          '」'
+        );
+    
+    
+        /* =================================================
+         * 重新載入訂單
+         * ================================================= */
+    
+        if (
+          window.currentProductId
+        ) {
+    
+          await showProductOrders(
+            window.currentProductId
+          );
+    
+        }
+    
+    
+      } catch (error) {
+    
+        console.error(
+          '[UPDATE ORDER STATUS]',
+          error
+        );
+    
+    
+        alert(
+          '更新訂單狀態失敗：\n' +
+          (
+            error.message ||
+            String(error)
+          )
+        );
+    
+    
+        /*
+         * 更新失敗也重新載入，
+         * 避免 select 顯示錯誤狀態
+         */
+    
+        if (
+          window.currentProductId
+        ) {
+    
+          await showProductOrders(
+            window.currentProductId
+          );
+    
+        }
+    
+    
+      } finally {
+    
+        hideLoading();
+    
+      }
+    
+    }
+
+
     function renderProductOrders(result) {
     
       hideLoading();
@@ -3631,7 +3879,7 @@
                     white-space:nowrap;
                   "
                 >
-                  ${escapeHtml(order.status || '-')}
+                  ${escapeHtml(getOrderStatusLabel(order.status))}
                 </div>
     
               </div>
@@ -3706,6 +3954,55 @@
                   ${formatDateTime(order.createdAt)}
                 </span>
     
+              </div>
+
+              <div class="order-status-editor">
+
+                <label>
+                  訂單狀態
+                </label>
+              
+                <select
+                  class="form-select"
+                  onchange="
+                    updateOrderStatus(
+                      '${escapeJs(order.orderId)}',
+                      this.value,
+                      this
+                    )
+                  "
+                >
+              
+                  <option
+                    value="PENDING"
+                    ${order.status === 'PENDING' ? 'selected' : ''}
+                  >
+                    待處理
+                  </option>
+              
+                  <option
+                    value="CONFIRMED"
+                    ${order.status === 'CONFIRMED' ? 'selected' : ''}
+                  >
+                    已確認
+                  </option>
+              
+                  <option
+                    value="COMPLETED"
+                    ${order.status === 'COMPLETED' ? 'selected' : ''}
+                  >
+                    已完成
+                  </option>
+              
+                  <option
+                    value="CANCELLED"
+                    ${order.status === 'CANCELLED' ? 'selected' : ''}
+                  >
+                    已取消
+                  </option>
+              
+                </select>
+              
               </div>
     
             </div>
