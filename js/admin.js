@@ -978,15 +978,25 @@ function renderEditProductPage(product) {
         </div>
 
         <div class="form-group">
-          <label class="field-label">商品規格選項 (JSON 或空)</label>
-          <textarea
-            id="editProductOptions"
-            class="form-textarea"
-            rows="3"
-            style="font-family:monospace;font-size:13px;"
-            placeholder='例如：[{"name":"顏色","values":["黑","米白","卡其"],"required":true}]'
-          >${product.options && Array.isArray(product.options) && product.options.length > 0 ? escapeHtml(JSON.stringify(product.options, null, 2)) : ''}</textarea>
-          <div class="form-help" style="margin-top:4px;color:#777;font-size:12px;">由 AI 自動解析生成，亦可在此手動調整規格項目。如無規格請留空。</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label class="field-label" style="margin-bottom:0;">商品規格項目（顏色、尺寸等）</label>
+            <button
+              type="button"
+              class="button button-secondary"
+              style="width:auto;padding:4px 12px;font-size:12px;"
+              onclick="addOptionRowUI()"
+            >
+              ＋ 新增規格組
+            </button>
+          </div>
+
+          <div id="editOptionsContainer" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
+            ${renderVisualOptionsEditor(product.options)}
+          </div>
+
+          <div class="form-help" style="color:#777;font-size:12px;line-height:1.5;">
+            💡 提示：每個選項名稱（如「顏色」），在可選值中用逗號或斜線隔開（例如：黑, 米白, 卡其）。若此商品無規格，全部刪除留空即可。
+          </div>
         </div>
 
         <div class="form-group">
@@ -1019,6 +1029,87 @@ function renderEditProductPage(product) {
   `;
 }
 
+function renderVisualOptionsEditor(options) {
+  if (!Array.isArray(options) || options.length === 0) {
+    return `
+      <div id="noOptionsNotice" style="text-align:center;padding:12px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
+        目前此商品無規格選項（如需設定顏色、尺寸請點右上角「＋ 新增規格組」）
+      </div>
+    `;
+  }
+
+  return options.map((opt, idx) => createOptionRowHTML(opt.name || '', Array.isArray(opt.values) ? opt.values.join(', ') : '', idx)).join('');
+}
+
+function createOptionRowHTML(name, valuesStr, idx) {
+  return `
+    <div class="option-editor-row" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px;position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:13px;color:#374151;">規格項目</span>
+        <button
+          type="button"
+          onclick="removeOptionRowUI(this)"
+          style="background:none;border:none;color:#e11d48;font-size:13px;font-weight:600;cursor:pointer;padding:2px 6px;"
+        >
+          ✕ 刪除這組
+        </button>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">規格名稱（例如：顏色、尺寸、口味）</label>
+        <input
+          class="form-input option-row-name"
+          type="text"
+          value="${escapeHtml(name)}"
+          placeholder="例如：顏色"
+          style="padding:8px 12px;font-size:14px;background:#fff;"
+        >
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">可選值（用逗號或斜線隔開）</label>
+        <input
+          class="form-input option-row-values"
+          type="text"
+          value="${escapeHtml(valuesStr)}"
+          placeholder="例如：黑, 米白, 卡其"
+          style="padding:8px 12px;font-size:14px;background:#fff;"
+        >
+      </div>
+    </div>
+  `;
+}
+
+function addOptionRowUI() {
+  const container = document.getElementById('editOptionsContainer');
+  if (!container) return;
+
+  const notice = document.getElementById('noOptionsNotice');
+  if (notice) notice.remove();
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = createOptionRowHTML('', '', Date.now());
+  const newRow = tempDiv.firstElementChild;
+  container.appendChild(newRow);
+
+  const firstInput = newRow.querySelector('.option-row-name');
+  if (firstInput) firstInput.focus();
+}
+
+function removeOptionRowUI(btn) {
+  const row = btn.closest('.option-editor-row');
+  if (row) row.remove();
+
+  const container = document.getElementById('editOptionsContainer');
+  if (container && container.querySelectorAll('.option-editor-row').length === 0) {
+    container.innerHTML = `
+      <div id="noOptionsNotice" style="text-align:center;padding:12px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
+        目前此商品無規格選項（如需設定顏色、尺寸請點右上角「＋ 新增規格組」）
+      </div>
+    `;
+  }
+}
+
 async function updateProduct() {
   const button = document.getElementById('updateProductBtn');
   const productId = document.getElementById('editProductId').value.trim();
@@ -1029,20 +1120,49 @@ async function updateProduct() {
   const endAt = document.getElementById('editProductEndAt').value;
   const description = document.getElementById('editProductDescription').value.trim();
   const status = document.getElementById('editProductStatus').value;
-  const optionsRaw = document.getElementById('editProductOptions').value.trim();
 
-  let parsedOptions = [];
-  if (optionsRaw) {
-    try {
-      parsedOptions = JSON.parse(optionsRaw);
-      if (!Array.isArray(parsedOptions)) {
-        alert('商品規格選項必須是 JSON 陣列格式');
-        return;
-      }
-    } catch (e) {
-      alert('商品規格選項的 JSON 格式不正確：\n' + e.message);
+  // 從視覺化規格卡片中收集規格項目
+  const parsedOptions = [];
+  const rows = document.querySelectorAll('#editOptionsContainer .option-editor-row');
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const nameInput = row.querySelector('.option-row-name');
+    const valuesInput = row.querySelector('.option-row-values');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const rawVals = valuesInput ? valuesInput.value.trim() : '';
+
+    if (!name && !rawVals) continue; // 空行跳過
+
+    if (!name) {
+      alert(`第 ${i + 1} 組規格名稱不能為空！`);
+      if (nameInput) nameInput.focus();
       return;
     }
+
+    if (!rawVals) {
+      alert(`請填寫「${name}」的可選項目值！`);
+      if (valuesInput) valuesInput.focus();
+      return;
+    }
+
+    // 支援逗號 (全形/半形)、斜線、頓號、空格自動分隔
+    const valList = rawVals
+      .split(/[,，/／、\s]+/)
+      .map(v => v.trim())
+      .filter(Boolean);
+
+    if (valList.length === 0) {
+      alert(`請填寫「${name}」的可選項目值！`);
+      if (valuesInput) valuesInput.focus();
+      return;
+    }
+
+    parsedOptions.push({
+      name: name,
+      values: valList,
+      required: true
+    });
   }
 
   if (!productId) {
