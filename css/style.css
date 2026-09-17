@@ -32,6 +32,9 @@
 
     button {
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     .app {
@@ -345,28 +348,90 @@
       width: 100%;
       max-width: 220px;
 
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+      touch-action: manipulation;
     }
 
     .quantity-button {
       width: 48px;
       height: 48px;
+      flex-shrink: 0;
 
-      border: 1px solid #ddd;
-      background: #f8f8f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-      font-size: 24px;
+      border: 1px solid #d1d5db;
+      background: #f3f4f6;
 
-      border-radius: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #374151;
+
+      border-radius: 12px;
+      transition: background 0.15s, transform 0.1s;
+      touch-action: manipulation;
     }
 
-    .quantity-value {
+    .quantity-button:active {
+      background: #e5e7eb;
+      transform: scale(0.95);
+    }
+
+    .quantity-input {
       flex: 1;
+      width: 60px;
+      height: 48px;
+      margin: 0 8px;
 
       text-align: center;
-
       font-size: 20px;
       font-weight: 700;
+      color: #111827;
+
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      background: #fff;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .quantity-input::-webkit-outer-spin-button,
+    .quantity-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .quantity-input:focus {
+      outline: none;
+      border-color: #06c755;
+      box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.15);
+    }
+
+    .quantity-quick-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .quick-add-btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      touch-action: manipulation;
+      transition: all 0.15s;
+    }
+
+    .quick-add-btn:active {
+      background: #06c755;
+      color: #fff;
+      border-color: #06c755;
+      transform: scale(0.95);
     }
 
     .total-box {
