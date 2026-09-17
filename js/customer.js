@@ -69,7 +69,7 @@ function renderProductPage(product) {
         </h1>
 
         <div class="product-price">
-          NT$ ${formatPrice(product.price)}
+          NT$ ${formatPrice(product.price)}${hasTieredPricing(product.options) ? ' 起' : ''}
         </div>
 
         ${
@@ -291,6 +291,9 @@ function selectOptionChip(button, optionName, value) {
   if (input) {
     input.value = value;
   }
+
+  // 選取規格後立即重新計算總金額（支援不同規格不同價格動態連動）
+  updateOrderTotal();
 }
 
 function renderUnavailableProduct(product) {
@@ -384,10 +387,36 @@ function syncQuantityDisplay() {
   }
 }
 
+function getEffectiveUnitPrice() {
+  if (!currentProduct) return 0;
+  let unitPrice = Number(currentProduct.price || 0);
+
+  // 尋找目前已選取的規格標籤
+  const selectedInputs = document.querySelectorAll('input[name="product-option"]');
+  let totalDelta = 0;
+
+  selectedInputs.forEach(input => {
+    const val = input.value.trim();
+    if (val) {
+      const tag = parseOptionPriceTag(val);
+      if (tag) {
+        if (tag.type === 'EXACT') {
+          unitPrice = tag.price; // 直接覆蓋單價（例如 3層40cm ($420)）
+        } else if (tag.type === 'DELTA') {
+          totalDelta += tag.delta; // 加價購（例如 盒子+$20）
+        }
+      }
+    }
+  });
+
+  return unitPrice + totalDelta;
+}
+
 function updateOrderTotal() {
   if (!currentProduct) return;
 
-  const total = Number(currentProduct.price) * Number(orderQuantity);
+  const unitPrice = getEffectiveUnitPrice();
+  const total = unitPrice * Number(orderQuantity);
   const totalElement = document.getElementById('orderTotal');
   if (totalElement) {
     totalElement.textContent = 'NT$ ' + total.toLocaleString();
