@@ -60,6 +60,20 @@ function formatDateTime(value) {
   return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
+function toInputDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 function handleApiErrorMessage(resultOrError) {
   if (!resultOrError) return '系統未回傳資料';
 
@@ -77,6 +91,9 @@ function handleApiErrorMessage(resultOrError) {
     ORDER_NOT_FOUND: '找不到該筆訂單',
     ALREADY_CLOSED: '此團購已經關閉',
     INVALID_OPTIONS: '選擇的商品規格不正確',
+    INVALID_PRODUCT_NAME: '商品名稱不能為空',
+    INVALID_PRICE: '商品價格格式錯誤',
+    INVALID_TIME_RANGE: '截止時間必須晚於開始時間',
     TIMEOUT: '伺服器連線逾時，請檢查網路後重試',
     SERVER_ERROR: '伺服器忙碌中，請稍後再試'
   };

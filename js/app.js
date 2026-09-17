@@ -187,13 +187,21 @@ async function initLIFF() {
 
     /*
      * 路由判斷：
-     * ?p=P202609160001 → 客戶商品頁
-     * 沒有 p            → 管理員後台入口
+     * ?edit=P202609160001 → 管理員直接進入該商品修改頁面
+     * ?p=P202609160001    → 客戶商品訂購頁
+     * 沒有參數             → 管理員後台入口
      */
     const params = new URLSearchParams(window.location.search);
+    const editProductId = params.get('edit');
     const productId = params.get('p');
 
-    if (productId) {
+    if (editProductId) {
+      log('[ROUTER] 直接編輯商品:', editProductId);
+      await verifyAdmin(idToken);
+      if (currentAdmin && currentAdmin.isAdmin) {
+        await showEditProductPage(editProductId);
+      }
+    } else if (productId) {
       log('[ROUTER] 商品頁:', productId);
       await verifyIdentity(idToken);
       await loadProduct(productId);

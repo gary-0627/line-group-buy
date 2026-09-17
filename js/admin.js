@@ -478,10 +478,18 @@ function renderMyProductsPage(products) {
           <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
             <button
               class="button button-primary"
-              style="flex:1;"
+              style="flex:1;min-width:90px;"
               onclick="showProductOrders('${escapeJs(product.productId)}')"
             >
               查看訂單
+            </button>
+
+            <button
+              class="button button-secondary"
+              style="flex:1;min-width:90px;"
+              onclick="showEditProductPage('${escapeJs(product.productId)}')"
+            >
+              ✏️ 編輯
             </button>
 
             ${
@@ -489,7 +497,7 @@ function renderMyProductsPage(products) {
                 ? `
                   <button
                     class="button button-secondary"
-                    style="flex:1;"
+                    style="flex:1;min-width:90px;"
                     onclick="closeProduct('${escapeJs(product.productId)}', '${escapeJs(product.productName)}')"
                   >
                     提前關閉
@@ -560,9 +568,18 @@ function renderProductOrders(result) {
         ← 返回團購清單
       </button>
 
-      <div class="header">
-        <h1 class="header-title">團購訂單</h1>
-        <div class="header-subtitle">${escapeHtml(product.productName || '')}</div>
+      <div class="header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h1 class="header-title" style="margin:0;">團購訂單</h1>
+          <div class="header-subtitle">${escapeHtml(product.productName || '')}</div>
+        </div>
+        <button
+          class="button button-secondary"
+          style="width:auto;padding:8px 16px;font-size:14px;"
+          onclick="showEditProductPage('${escapeJs(product.productId || window.currentProductId)}')"
+        >
+          ✏️ 修改商品
+        </button>
       </div>
 
       <div class="card">
@@ -837,4 +854,240 @@ function showSystemPage() {
       </div>
     </div>
   `;
+}
+
+/* =================================================
+ * 編輯商品資料頁面與送出 (showEditProductPage & updateProduct)
+ * ================================================= */
+async function showEditProductPage(productId) {
+  if (!productId) {
+    alert('缺少商品編號');
+    return;
+  }
+
+  setLoading('正在讀取商品資料...');
+
+  try {
+    const result = await apiRequest({
+      action: 'getProduct',
+      productId: productId
+    });
+
+    if (!result.success || !result.product) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    renderEditProductPage(result.product);
+
+  } catch (error) {
+    console.error('[EDIT PRODUCT] 讀取失敗:', error);
+    alert('讀取商品失敗：\n' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderEditProductPage(product) {
+  hideLoading();
+  const app = document.getElementById('app');
+
+  const startAtVal = toInputDateTime(product.startAt);
+  const endAtVal = toInputDateTime(product.endAt);
+  const isClosed = product.status === 'CLOSED';
+
+  app.innerHTML = `
+    <div class="container">
+      <button class="back-button" onclick="showMyProductsPage()">
+        ← 返回團購清單
+      </button>
+
+      <div class="header">
+        <h1 class="header-title">修改商品</h1>
+        <div class="header-subtitle">編號：${escapeHtml(product.productId)}</div>
+      </div>
+
+      <div class="card">
+        <input type="hidden" id="editProductId" value="${escapeHtml(product.productId)}">
+
+        <div class="form-group">
+          <label class="field-label">商品狀態</label>
+          <select id="editProductStatus" class="form-select">
+            <option value="OPEN" ${!isClosed ? 'selected' : ''}>🟢 進行中 (OPEN)</option>
+            <option value="CLOSED" ${isClosed ? 'selected' : ''}>🔴 已截止 / 關閉 (CLOSED)</option>
+          </select>
+          <div class="form-help" style="margin-top:4px;color:#777;font-size:12px;">若設為已截止，前台將立即停止接單。</div>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">商品名稱 *</label>
+          <input
+            id="editProductName"
+            class="form-input"
+            type="text"
+            maxlength="100"
+            value="${escapeHtml(product.productName || '')}"
+            placeholder="例如：日本麝香葡萄"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">商品售價 *</label>
+          <input
+            id="editProductPrice"
+            class="form-input"
+            type="number"
+            min="0"
+            step="1"
+            value="${product.price != null ? product.price : ''}"
+            placeholder="例如：250"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">最大訂購數量</label>
+          <input
+            id="editProductMaxQty"
+            class="form-input"
+            type="number"
+            min="0"
+            step="1"
+            value="${product.maxQty != null ? product.maxQty : 0}"
+            placeholder="0 = 不限量"
+          >
+          <div class="form-help" style="margin-top:4px;color:#777;font-size:12px;">0 代表不限量。</div>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">開始時間 *</label>
+          <input
+            id="editProductStartAt"
+            class="form-input"
+            type="datetime-local"
+            value="${startAtVal}"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">截止時間 *</label>
+          <input
+            id="editProductEndAt"
+            class="form-input"
+            type="datetime-local"
+            value="${endAtVal}"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">商品說明文案</label>
+          <textarea
+            id="editProductDescription"
+            class="form-textarea"
+            rows="6"
+            placeholder="輸入商品詳細介紹、規格、到貨日程..."
+          >${escapeHtml(product.description || '')}</textarea>
+        </div>
+
+        <button
+          id="updateProductBtn"
+          class="button button-primary"
+          onclick="updateProduct()"
+        >
+          儲存修改
+        </button>
+
+        <button
+          class="button button-secondary"
+          style="margin-top:10px;"
+          onclick="showMyProductsPage()"
+        >
+          取消返回
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function updateProduct() {
+  const button = document.getElementById('updateProductBtn');
+  const productId = document.getElementById('editProductId').value.trim();
+  const productName = document.getElementById('editProductName').value.trim();
+  const price = document.getElementById('editProductPrice').value.trim();
+  const maxQty = document.getElementById('editProductMaxQty').value.trim();
+  const startAt = document.getElementById('editProductStartAt').value;
+  const endAt = document.getElementById('editProductEndAt').value;
+  const description = document.getElementById('editProductDescription').value.trim();
+  const status = document.getElementById('editProductStatus').value;
+
+  if (!productId) {
+    alert('缺少商品編號');
+    return;
+  }
+
+  if (!productName) {
+    alert('請輸入商品名稱');
+    return;
+  }
+
+  const priceNumber = Number(price);
+  if (price === '' || !Number.isFinite(priceNumber) || priceNumber < 0) {
+    alert('請輸入正確商品價格');
+    return;
+  }
+
+  const maxQtyValue = Number(maxQty);
+  if (maxQty !== '' && (!Number.isInteger(maxQtyValue) || maxQtyValue < 0)) {
+    alert('最大訂購數量必須是 0 或正整數');
+    return;
+  }
+
+  if (startAt && endAt && new Date(endAt) <= new Date(startAt)) {
+    alert('截止時間必須晚於開始時間');
+    return;
+  }
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = '儲存中...';
+    }
+
+    setLoading('正在儲存商品修改...');
+
+    const idToken = liff.getIDToken();
+    if (!idToken) {
+      throw new Error('無法取得 LINE ID Token');
+    }
+
+    const result = await apiRequest({
+      action: 'updateProduct',
+      idToken: idToken,
+      productId: productId,
+      product: {
+        productName: productName,
+        price: Number(price),
+        maxQty: maxQty === '' ? 0 : maxQtyValue,
+        startAt: startAt,
+        endAt: endAt,
+        description: description,
+        status: status
+      }
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('🎉 商品修改成功！');
+    await showMyProductsPage();
+
+  } catch (error) {
+    console.error('[UPDATE PRODUCT] 失敗:', error);
+    hideLoading();
+    alert('修改失敗：\n' + handleApiErrorMessage(error));
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = '儲存修改';
+    }
+  }
 }
