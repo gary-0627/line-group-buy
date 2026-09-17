@@ -3407,6 +3407,323 @@
       app.innerHTML = html;
     }
 
+    
+    async function showProductOrders(productId) {
+    
+      if (!productId) {
+        alert('缺少商品編號');
+        return;
+      }
+    
+      setLoading('正在載入團購訂單...');
+    
+      try {
+    
+        const idToken =
+          liff.getIDToken();
+    
+        if (!idToken) {
+          throw new Error('無法取得 LINE ID Token');
+        }
+    
+        const result =
+          await apiRequest({
+    
+            action: 'getProductOrders',
+    
+            idToken: idToken,
+    
+            productId: productId
+    
+          });
+    
+        if (!result.success) {
+    
+          throw new Error(
+            result.message ||
+            result.error ||
+            '取得訂單失敗'
+          );
+        }
+    
+        renderProductOrders(result);
+    
+      } catch (error) {
+    
+        console.error(
+          '[PRODUCT ORDERS]',
+          error
+        );
+    
+        alert(
+          '取得團購訂單失敗：\n' +
+          (error.message || String(error))
+        );
+    
+      } finally {
+    
+        hideLoading();
+    
+      }
+    }
+
+
+    function renderProductOrders(result) {
+    
+      hideLoading();
+    
+      const app =
+        document.getElementById('app');
+    
+      const product =
+        result.product || {};
+    
+      const orders =
+        result.orders || [];
+    
+      const stats =
+        result.stats || {};
+    
+      let html = `
+    
+        <div class="container">
+    
+          ${renderUserCard()}
+    
+          <button
+            class="back-button"
+            onclick="showMyProductsPage()"
+          >
+            ← 返回我的團購
+          </button>
+    
+          <div class="header">
+    
+            <h1 class="header-title">
+              團購訂單
+            </h1>
+    
+            <div class="header-subtitle">
+              ${escapeHtml(product.productName || '')}
+            </div>
+    
+          </div>
+    
+          <div class="card">
+    
+            <div class="card-title">
+              訂單統計
+            </div>
+    
+            <div class="product-info-row">
+    
+              <span class="product-info-label">
+                有效訂單數
+              </span>
+    
+              <span class="product-info-value">
+                ${stats.orderCount || 0}
+              </span>
+    
+            </div>
+    
+            <div class="product-info-row">
+    
+              <span class="product-info-label">
+                訂購總數量
+              </span>
+    
+              <span class="product-info-value">
+                ${stats.totalQuantity || 0}
+              </span>
+    
+            </div>
+    
+            <div class="product-info-row">
+    
+              <span class="product-info-label">
+                訂購總金額
+              </span>
+    
+              <span class="product-info-value">
+                NT$ ${formatPrice(stats.totalAmount || 0)}
+              </span>
+    
+            </div>
+    
+          </div>
+    
+      `;
+    
+      if (!orders.length) {
+    
+        html += `
+    
+          <div class="card">
+    
+            <div
+              style="
+                text-align:center;
+                color:#777;
+                padding:30px 10px;
+              "
+            >
+              目前還沒有訂單
+            </div>
+    
+          </div>
+    
+        `;
+    
+      } else {
+    
+        orders.forEach(function(order) {
+    
+          let optionsText = '';
+    
+          if (typeof order.options === 'object' && order.options !== null) {
+    
+            optionsText =
+              Object.entries(order.options)
+                .map(function(entry) {
+                  return entry[0] + ': ' + entry[1];
+                })
+                .join(', ');
+    
+          } else {
+    
+            optionsText =
+              String(order.options || '');
+    
+          }
+    
+          html += `
+    
+            <div class="card">
+    
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:12px;
+                  margin-bottom:12px;
+                "
+              >
+    
+                <div
+                  style="
+                    font-size:18px;
+                    font-weight:700;
+                  "
+                >
+                  ${escapeHtml(
+                    order.displayName || '未提供名稱'
+                  )}
+                </div>
+    
+                <div
+                  style="
+                    color:#777;
+                    font-size:12px;
+                    white-space:nowrap;
+                  "
+                >
+                  ${escapeHtml(order.status || '-')}
+                </div>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  訂單編號
+                </span>
+    
+                <span class="product-info-value">
+                  ${escapeHtml(order.orderId || '-')}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  訂購數量
+                </span>
+    
+                <span class="product-info-value">
+                  ${order.quantity || 0}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  單價
+                </span>
+    
+                <span class="product-info-value">
+                  NT$ ${formatPrice(order.unitPrice || 0)}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  小計
+                </span>
+    
+                <span class="product-info-value">
+                  NT$ ${formatPrice(order.totalPrice || 0)}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  選項
+                </span>
+    
+                <span class="product-info-value">
+                  ${escapeHtml(optionsText || '-')}
+                </span>
+    
+              </div>
+    
+              <div class="product-info-row">
+    
+                <span class="product-info-label">
+                  下單時間
+                </span>
+    
+                <span class="product-info-value">
+                  ${formatDateTime(order.createdAt)}
+                </span>
+    
+              </div>
+    
+            </div>
+    
+          `;
+        });
+      }
+    
+      html += `
+    
+        </div>
+    
+      `;
+    
+      app.innerHTML =
+        html;
+    }
+    
+    
+
     async function closeProduct(productId, productName) {
       
       const confirmed = confirm(
