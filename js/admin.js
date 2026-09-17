@@ -169,6 +169,32 @@ function showCreateProductPage() {
         </div>
 
         <div class="form-group">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label class="field-label" style="margin-bottom:0;">商品規格項目（顏色、尺寸、差價、加購等）</label>
+            <button
+              type="button"
+              class="button button-secondary"
+              style="width:auto;padding:4px 12px;font-size:12px;"
+              onclick="addOptionRowUI('createOptionsContainer')"
+            >
+              ＋ 新增規格組
+            </button>
+          </div>
+
+          <div id="createOptionsContainer" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
+            ${renderVisualOptionsEditor([], 'createOptionsContainer')}
+          </div>
+
+          <div class="form-help" style="color:#374151;font-size:12px;line-height:1.6;background:#f0fdf4;padding:12px;border-radius:8px;border:1px solid #86efac;margin-top:8px;">
+            <div style="font-weight:700;color:#166534;margin-bottom:4px;">💰 如何設定不同規格不同價格？</div>
+            <div>• <strong>指定各規格價格（覆蓋底價）</strong>：用 <code>($價格)</code>，例如：<code>3層30cm ($390), 3層40cm ($420)</code></div>
+            <div>• <strong>加價購（在底價上加額）</strong>：用 <code>(+加價)</code>，例如：<code>一般包裝, 禮盒包裝 (+$20)</code></div>
+            <div>• <strong>一般同價規格</strong>：直接填寫，例如：<code>黑, 米白, 卡其</code></div>
+            <div style="margin-top:6px;font-size:11px;color:#6b7280;">提示：可選值用逗號（,）或頓號（、）分開。若此商品無規格，留空即可。</div>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label class="field-label">商品說明</label>
           <textarea
             id="productDescription"
@@ -228,6 +254,11 @@ async function createProduct() {
     return;
   }
 
+  // 從視覺化規格卡片中收集規格項目
+  const optionsResult = collectOptionsFromContainer('createOptionsContainer');
+  if (!optionsResult.valid) return;
+  const parsedOptions = optionsResult.options;
+
   try {
     if (button) {
       button.disabled = true;
@@ -251,7 +282,7 @@ async function createProduct() {
         startAt: startAt,
         endAt: endAt,
         description: description,
-        options: []
+        options: parsedOptions
       }
     });
 
@@ -979,23 +1010,27 @@ function renderEditProductPage(product) {
 
         <div class="form-group">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <label class="field-label" style="margin-bottom:0;">商品規格項目（顏色、尺寸等）</label>
+            <label class="field-label" style="margin-bottom:0;">商品規格項目（顏色、尺寸、差價、加購等）</label>
             <button
               type="button"
               class="button button-secondary"
               style="width:auto;padding:4px 12px;font-size:12px;"
-              onclick="addOptionRowUI()"
+              onclick="addOptionRowUI('editOptionsContainer')"
             >
               ＋ 新增規格組
             </button>
           </div>
 
           <div id="editOptionsContainer" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
-            ${renderVisualOptionsEditor(product.options)}
+            ${renderVisualOptionsEditor(product.options, 'editOptionsContainer')}
           </div>
 
-          <div class="form-help" style="color:#777;font-size:12px;line-height:1.5;">
-            💡 提示：每個選項名稱（如「顏色」），在可選值中用逗號或斜線隔開（例如：黑, 米白, 卡其）。若此商品無規格，全部刪除留空即可。
+          <div class="form-help" style="color:#374151;font-size:12px;line-height:1.6;background:#f0fdf4;padding:12px;border-radius:8px;border:1px solid #86efac;margin-top:8px;">
+            <div style="font-weight:700;color:#166534;margin-bottom:4px;">💰 如何設定不同規格不同價格？</div>
+            <div>• <strong>指定各規格價格（覆蓋底價）</strong>：用 <code>($價格)</code>，例如：<code>3層30cm ($390), 3層40cm ($420)</code></div>
+            <div>• <strong>加價購（在底價上加額）</strong>：用 <code>(+加價)</code>，例如：<code>一般包裝, 禮盒包裝 (+$20)</code></div>
+            <div>• <strong>一般同價規格</strong>：直接填寫，例如：<code>黑, 米白, 卡其</code></div>
+            <div style="margin-top:6px;font-size:11px;color:#6b7280;">提示：可選值用逗號（,）或頓號（、）分開。若此商品無規格，全部刪除留空即可。</div>
           </div>
         </div>
 
@@ -1029,11 +1064,11 @@ function renderEditProductPage(product) {
   `;
 }
 
-function renderVisualOptionsEditor(options) {
+function renderVisualOptionsEditor(options, containerId = 'editOptionsContainer') {
   if (!Array.isArray(options) || options.length === 0) {
     return `
-      <div id="noOptionsNotice" style="text-align:center;padding:12px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
-        目前此商品無規格選項（如需設定顏色、尺寸請點右上角「＋ 新增規格組」）
+      <div id="noOptionsNotice" style="text-align:center;padding:14px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
+        目前此商品無規格選項（如需設定顏色、尺寸或不同價格，請點右上角「＋ 新增規格組」）
       </div>
     `;
   }
@@ -1056,35 +1091,58 @@ function createOptionRowHTML(name, valuesStr, idx) {
       </div>
 
       <div style="margin-bottom:8px;">
-        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">規格名稱（例如：顏色、尺寸、口味）</label>
+        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">規格名稱（例如：顏色、尺寸、口味、配件）</label>
         <input
           class="form-input option-row-name"
           type="text"
           value="${escapeHtml(name)}"
-          placeholder="例如：顏色"
+          placeholder="例如：尺寸 或 配件"
           style="padding:8px 12px;font-size:14px;background:#fff;"
         >
       </div>
 
       <div>
-        <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">可選值（用逗號或斜線隔開）</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <label style="font-size:12px;color:#6b7280;">可選值（用逗號隔開，可含價格）</label>
+        </div>
         <input
           class="form-input option-row-values"
           type="text"
           value="${escapeHtml(valuesStr)}"
-          placeholder="例如：黑, 米白, 卡其"
+          placeholder="例如：3層30cm ($390), 3層40cm ($420)"
           style="padding:8px 12px;font-size:14px;background:#fff;"
         >
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:11px;color:#6b7280;">快速填入範例：</span>
+          <button type="button" onclick="appendOptionSample(this, '3層30cm ($390), 3層40cm ($420)')" style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:11px;padding:2px 8px;cursor:pointer;">
+            不同尺寸不同價 ($390)
+          </button>
+          <button type="button" onclick="appendOptionSample(this, '一般包裝, 禮盒包裝 (+$20)')" style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;color:#b45309;font-size:11px;padding:2px 8px;cursor:pointer;">
+            加價購 (+$20)
+          </button>
+          <button type="button" onclick="appendOptionSample(this, '黑, 米白, 卡其')" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;color:#4b5563;font-size:11px;padding:2px 8px;cursor:pointer;">
+            一般顏色
+          </button>
+        </div>
       </div>
     </div>
   `;
 }
 
-function addOptionRowUI() {
-  const container = document.getElementById('editOptionsContainer');
+function appendOptionSample(btn, sampleText) {
+  const row = btn.closest('.option-editor-row');
+  const input = row ? row.querySelector('.option-row-values') : null;
+  if (input) {
+    input.value = sampleText;
+    input.focus();
+  }
+}
+
+function addOptionRowUI(containerId = 'editOptionsContainer') {
+  const container = document.getElementById(containerId) || document.getElementById('editOptionsContainer');
   if (!container) return;
 
-  const notice = document.getElementById('noOptionsNotice');
+  const notice = container.querySelector('#noOptionsNotice') || document.getElementById('noOptionsNotice');
   if (notice) notice.remove();
 
   const tempDiv = document.createElement('div');
@@ -1098,16 +1156,67 @@ function addOptionRowUI() {
 
 function removeOptionRowUI(btn) {
   const row = btn.closest('.option-editor-row');
+  const container = row ? row.parentElement : null;
   if (row) row.remove();
 
-  const container = document.getElementById('editOptionsContainer');
   if (container && container.querySelectorAll('.option-editor-row').length === 0) {
     container.innerHTML = `
-      <div id="noOptionsNotice" style="text-align:center;padding:12px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
-        目前此商品無規格選項（如需設定顏色、尺寸請點右上角「＋ 新增規格組」）
+      <div id="noOptionsNotice" style="text-align:center;padding:14px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;color:#777;font-size:13px;">
+        目前此商品無規格選項（如需設定顏色、尺寸或不同價格，請點右上角「＋ 新增規格組」）
       </div>
     `;
   }
+}
+
+function collectOptionsFromContainer(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return { valid: true, options: [] };
+
+  const parsedOptions = [];
+  const rows = container.querySelectorAll('.option-editor-row');
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const nameInput = row.querySelector('.option-row-name');
+    const valuesInput = row.querySelector('.option-row-values');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const rawVals = valuesInput ? valuesInput.value.trim() : '';
+
+    if (!name && !rawVals) continue; // 空行跳過
+
+    if (!name) {
+      alert(`第 ${i + 1} 組規格名稱不能為空！`);
+      if (nameInput) nameInput.focus();
+      return { valid: false };
+    }
+
+    if (!rawVals) {
+      alert(`請填寫「${name}」的可選項目值！`);
+      if (valuesInput) valuesInput.focus();
+      return { valid: false };
+    }
+
+    // 支援逗號 (全形/半形)、頓號、斜線、換行分隔（注意：絕不可包含空白 \s，因選項中包含 ($390) 或 (+$20) 等價格標籤）
+    const valList = rawVals
+      .split(/[,，、/／\n]+/)
+      .map(v => v.trim())
+      .filter(Boolean);
+
+    if (valList.length === 0) {
+      alert(`請填寫「${name}」的可選項目值！`);
+      if (valuesInput) valuesInput.focus();
+      return { valid: false };
+    }
+
+    parsedOptions.push({
+      name: name,
+      values: valList,
+      required: true
+    });
+  }
+
+  return { valid: true, options: parsedOptions };
 }
 
 async function updateProduct() {
@@ -1122,48 +1231,9 @@ async function updateProduct() {
   const status = document.getElementById('editProductStatus').value;
 
   // 從視覺化規格卡片中收集規格項目
-  const parsedOptions = [];
-  const rows = document.querySelectorAll('#editOptionsContainer .option-editor-row');
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const nameInput = row.querySelector('.option-row-name');
-    const valuesInput = row.querySelector('.option-row-values');
-
-    const name = nameInput ? nameInput.value.trim() : '';
-    const rawVals = valuesInput ? valuesInput.value.trim() : '';
-
-    if (!name && !rawVals) continue; // 空行跳過
-
-    if (!name) {
-      alert(`第 ${i + 1} 組規格名稱不能為空！`);
-      if (nameInput) nameInput.focus();
-      return;
-    }
-
-    if (!rawVals) {
-      alert(`請填寫「${name}」的可選項目值！`);
-      if (valuesInput) valuesInput.focus();
-      return;
-    }
-
-    // 支援逗號 (全形/半形)、斜線、頓號、空格自動分隔
-    const valList = rawVals
-      .split(/[,，/／、\s]+/)
-      .map(v => v.trim())
-      .filter(Boolean);
-
-    if (valList.length === 0) {
-      alert(`請填寫「${name}」的可選項目值！`);
-      if (valuesInput) valuesInput.focus();
-      return;
-    }
-
-    parsedOptions.push({
-      name: name,
-      values: valList,
-      required: true
-    });
-  }
+  const optionsResult = collectOptionsFromContainer('editOptionsContainer');
+  if (!optionsResult.valid) return;
+  const parsedOptions = optionsResult.options;
 
   if (!productId) {
     alert('缺少商品編號');
