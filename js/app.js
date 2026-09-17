@@ -77,32 +77,25 @@ function renderProductError(message, productId) {
 }
 
 /* =================================================
- * LINE 身分驗證 (顧客端)
+ * LINE 身分驗證 (顧客端 - 靜默背景同步，絕不阻塞畫面)
  * ================================================= */
-async function verifyIdentity(idToken) {
-  setLoading('正在確認 LINE 身分...');
-  log('[IDENTITY] 開始驗證');
+async function syncIdentityInBackground(idToken) {
+  try {
+    log('[IDENTITY] 背景身分同步開始');
 
-  const result = await apiRequest({
-    action: 'verifyIdentity',
-    idToken: idToken
-  });
+    const result = await apiRequest({
+      action: 'verifyIdentity',
+      idToken: idToken
+    });
 
-  log('[IDENTITY] 驗證結果:', result);
+    log('[IDENTITY] 背景驗證結果:', result);
 
-  if (!result.success) {
-    const errorMsg = result.message || '';
-    // Token 過期 → 自動重新登入
-    if (errorMsg.includes('expired') || errorMsg.includes('Token 驗證失敗')) {
-      console.warn('[IDENTITY] Token 過期，重新登入');
-      liff.logout();
-      liff.login();
-      return;
+    if (result && result.success && result.user) {
+      currentUser = result.user;
     }
-    throw new Error(handleApiErrorMessage(result));
+  } catch (err) {
+    console.warn('[IDENTITY] 背景身分同步略過:', err);
   }
-
-  currentUser = result.user;
 }
 
 /* =================================================
@@ -271,10 +264,8 @@ async function initLIFF() {
       // 🚀 關鍵優化：先直接載入商品（顧客立即看到商品、價格與規格，完全不卡冷啟動！）
       await loadProduct(productId);
 
-      // 背景向後端同步身分紀錄（非阻塞，即使失敗也不影響看商品與下單）
-      verifyIdentity(idToken).catch(err => {
-        console.warn('[IDENTITY] 背景身分同步提示:', err);
-      });
+      // 背景向後端同步身分紀錄（完全靜默非阻塞，絕不蓋住畫面）
+      syncIdentityInBackground(idToken);
     } else {
       log('[ROUTER] 管理員入口');
       await verifyAdmin(idToken);
