@@ -46,23 +46,30 @@ function showError(message) {
   }
 }
 
-function renderProductError(message) {
+function renderProductError(message, productId) {
   hideLoading();
   const app = document.getElementById('app');
   if (!app) return;
 
+  app.style.display = 'block';
   app.innerHTML = `
     <div class="container">
       <div class="card">
-        <div style="text-align:center;padding:20px 0;">
-          <div style="font-size:42px;margin-bottom:12px;">⚠️</div>
+        <div style="text-align:center;padding:24px 12px;">
+          <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
           <div style="font-size:20px;font-weight:700;margin-bottom:10px;">無法載入團購</div>
-          <div style="color:#777;line-height:1.6;margin-bottom:20px;">
-            ${escapeHtml(message || '找不到此團購')}
+          <div style="color:#e11d48;font-weight:600;line-height:1.6;margin-bottom:10px;">
+            ${escapeHtml(message || '找不到此團購商品')}
           </div>
-          <button class="button button-secondary" onclick="showMyOrdersPage()">
-            查看我的訂單
-          </button>
+          ${productId ? `<div style="color:#9ca3af;font-size:13px;margin-bottom:20px;">商品編號：<code>${escapeHtml(productId)}</code></div>` : ''}
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:280px;margin:0 auto;">
+            <button class="button button-primary" onclick="location.reload()">
+              🔄 重新整理重試
+            </button>
+            <button class="button button-secondary" onclick="showMyOrdersPage()">
+              📋 查看我的訂單
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -159,6 +166,53 @@ async function verifyAdmin(idToken) {
 }
 
 /* =================================================
+ * 路由參數解析（支援 search, liff.state, hash 與去斜線）
+ * ================================================= */
+function getRouteParams() {
+  const params = new URLSearchParams(window.location.search);
+  let p = params.get('p');
+  let edit = params.get('edit');
+
+  // 1. 若 search 內無直接參數，但有 liff.state，解析 liff.state
+  const liffState = params.get('liff.state');
+  if (liffState && (!p && !edit)) {
+    try {
+      let decoded = decodeURIComponent(liffState);
+      if (decoded.startsWith('/')) decoded = decoded.slice(1);
+      if (decoded.startsWith('?')) decoded = decoded.slice(1);
+      const stateParams = new URLSearchParams(decoded);
+      if (!p) p = stateParams.get('p');
+      if (!edit) edit = stateParams.get('edit');
+    } catch (err) {
+      console.warn('[ROUTER] 解析 liff.state 失敗:', err);
+    }
+  }
+
+  // 2. 若依然無參數，檢查 location.hash（部分 LINE 瀏覽器相容）
+  if ((!p && !edit) && window.location.hash) {
+    try {
+      let hash = window.location.hash.replace(/^#\/?/, '');
+      if (hash.startsWith('?')) hash = hash.slice(1);
+      const hashParams = new URLSearchParams(hash);
+      if (!p) p = hashParams.get('p');
+      if (!edit) edit = hashParams.get('edit');
+    } catch (err) {
+      console.warn('[ROUTER] 解析 hash 失敗:', err);
+    }
+  }
+
+  // 3. 清除字串前後斜線與空白（防止 trailing slash 導致商品查無資料）
+  if (p) {
+    p = p.replace(/\/+$/, '').trim();
+  }
+  if (edit) {
+    edit = edit.replace(/\/+$/, '').trim();
+  }
+
+  return { productId: p, editProductId: edit };
+}
+
+/* =================================================
  * LIFF 初始化與路由分流
  * ================================================= */
 async function initLIFF() {
@@ -185,15 +239,26 @@ async function initLIFF() {
       throw new Error('無法取得 LINE ID Token');
     }
 
+    // 取得顧客端基本資料（前端本地快取直接讀取，0 毫秒極速不卡頓、不佔用後端資源）
+    try {
+      const profile = await liff.getProfile();
+      currentUser = {
+        userId: profile.userId,
+        displayName: profile.displayName || 'LINE 使用者',
+        picture: profile.pictureUrl || null
+      };
+      log('[USER] 取得 LINE 個人資料:', currentUser.displayName);
+    } catch (profileErr) {
+      console.warn('[USER] 讀取 LIFF Profile 略過:', profileErr);
+    }
+
     /*
      * 路由判斷：
      * ?edit=P202609160001 → 管理員直接進入該商品修改頁面
      * ?p=P202609160001    → 客戶商品訂購頁
      * 沒有參數             → 管理員後台入口
      */
-    const params = new URLSearchParams(window.location.search);
-    const editProductId = params.get('edit');
-    const productId = params.get('p');
+    const { productId, editProductId } = getRouteParams();
 
     if (editProductId) {
       log('[ROUTER] 直接編輯商品:', editProductId);
@@ -203,11 +268,13 @@ async function initLIFF() {
       }
     } else if (productId) {
       log('[ROUTER] 商品頁:', productId);
-      // 🚀 平行並發執行：身分驗證 + 載入商品，速度提升一倍，徹底防止冷啟動逾時！
-      await Promise.all([
-        verifyIdentity(idToken),
-        loadProduct(productId)
-      ]);
+      // 🚀 關鍵優化：先直接載入商品（顧客立即看到商品、價格與規格，完全不卡冷啟動！）
+      await loadProduct(productId);
+
+      // 背景向後端同步身分紀錄（非阻塞，即使失敗也不影響看商品與下單）
+      verifyIdentity(idToken).catch(err => {
+        console.warn('[IDENTITY] 背景身分同步提示:', err);
+      });
     } else {
       log('[ROUTER] 管理員入口');
       await verifyAdmin(idToken);

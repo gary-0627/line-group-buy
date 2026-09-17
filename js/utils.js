@@ -33,6 +33,34 @@ function formatPrice(price) {
   });
 }
 
+function parseOptionPriceTag(str) {
+  if (!str || typeof str !== 'string') return null;
+
+  // 檢查是否有加價 (+20 / +NT$ 20 / +20元)
+  const deltaMatch = str.match(/\(\s*\+\s*(?:NT\$?|\$)?\s*(\d+)(?:\s*元)?\s*\)/i) ||
+                     str.match(/\+\s*(?:NT\$?|\$)?\s*(\d+)(?:\s*元)?/i);
+  if (deltaMatch) {
+    return { type: 'DELTA', delta: Number(deltaMatch[1]) };
+  }
+
+  // 檢查是否有明確指定價格 (NT$ 420 / $420 / 420元)
+  const exactMatch = str.match(/\(\s*(?:NT\$?|\$)\s*(\d+)(?:\s*元)?\s*\)/i) ||
+                     str.match(/(?:NT\$?|\$)\s*(\d+)(?:\s*元)?/i);
+  if (exactMatch) {
+    return { type: 'EXACT', price: Number(exactMatch[1]) };
+  }
+
+  return null;
+}
+
+function hasTieredPricing(options) {
+  if (!Array.isArray(options) || options.length === 0) return false;
+  return options.some(opt => {
+    const values = Array.isArray(opt.values) ? opt.values : [];
+    return values.some(val => parseOptionPriceTag(val) !== null);
+  });
+}
+
 function getOrderStatusLabel(status) {
   const labels = {
     PENDING: '待處理',

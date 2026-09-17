@@ -3,6 +3,21 @@
  *************************************************/
 
 async function apiRequest(data, timeoutMs = 35000) {
+  const isReadAction = data && (data.action === 'getProduct' || data.action === 'getMyProducts' || data.action === 'getMyOrders');
+
+  try {
+    return await rawApiRequest(data, timeoutMs);
+  } catch (err) {
+    // 若為讀取操作且發生逾時或網路中斷，自動重試一次（伺服器被喚醒後第二次秒開）
+    if (isReadAction && (err.code === 'TIMEOUT' || (err.message && err.message.includes('Failed to fetch')))) {
+      console.warn(`[API] ${data.action} 連線異常，正在進行第二次自動重試...`);
+      return await rawApiRequest(data, timeoutMs);
+    }
+    throw err;
+  }
+}
+
+async function rawApiRequest(data, timeoutMs = 35000) {
   log('====================================');
   log('API Request Action:', data ? data.action : 'unknown');
 

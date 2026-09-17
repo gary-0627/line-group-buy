@@ -30,7 +30,7 @@ async function loadProduct(productId) {
 
   } catch (error) {
     console.error('[PRODUCT] 載入失敗：', error);
-    renderProductError(handleApiErrorMessage(error));
+    renderProductError(handleApiErrorMessage(error), productId);
   } finally {
     hideLoading();
   }
@@ -140,6 +140,14 @@ function renderCustomerUserCard() {
       </div>
     </div>
   `;
+}
+
+function updateCustomerUserCard() {
+  const name = currentUser?.displayName || 'LINE 使用者';
+  const nameEl = document.querySelector('.user-card .user-name');
+  const avatarEl = document.querySelector('.user-card .user-avatar');
+  if (nameEl) nameEl.textContent = name;
+  if (avatarEl) avatarEl.textContent = name.charAt(0);
 }
 
 function renderOrderForm(product) {
