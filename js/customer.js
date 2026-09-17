@@ -159,21 +159,39 @@ function renderOrderForm(product) {
             type="button"
             class="quantity-button"
             onclick="changeQuantity(-1)"
+            aria-label="減少數量"
           >
             −
           </button>
 
-          <div id="quantity" class="quantity-value">
-            1
-          </div>
+          <input
+            id="quantity"
+            class="quantity-input"
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            min="1"
+            value="1"
+            oninput="handleQuantityInput(this.value)"
+            onblur="validateQuantityInput(this)"
+            aria-label="訂購數量"
+          >
 
           <button
             type="button"
             class="quantity-button"
             onclick="changeQuantity(1)"
+            aria-label="增加數量"
           >
             ＋
           </button>
+        </div>
+
+        <div class="quantity-quick-row">
+          <button type="button" class="quick-add-btn" onclick="setExactQuantity(1)">1</button>
+          <button type="button" class="quick-add-btn" onclick="changeQuantity(5)">+5</button>
+          <button type="button" class="quick-add-btn" onclick="changeQuantity(10)">+10</button>
+          <button type="button" class="quick-add-btn" onclick="changeQuantity(20)">+20</button>
         </div>
       </div>
 
@@ -225,24 +243,72 @@ function renderUnavailableProduct(product) {
   `;
 }
 
+function getMaxAllowedQuantity() {
+  if (!currentProduct) return 999;
+  return currentProduct.remainingQuantity != null
+    ? currentProduct.remainingQuantity
+    : (currentProduct.maxQty > 0 ? currentProduct.maxQty : 999);
+}
+
 function changeQuantity(delta) {
   if (!currentProduct) return;
 
-  // 優先使用後端計算的剩餘庫存，避免選了超量後才被後端擋回
-  const maxQty = currentProduct.remainingQuantity != null
-    ? currentProduct.remainingQuantity
-    : (currentProduct.maxQty > 0 ? currentProduct.maxQty : 999);
+  const maxQty = getMaxAllowedQuantity();
   orderQuantity += delta;
 
   if (orderQuantity < 1) orderQuantity = 1;
   if (orderQuantity > maxQty) orderQuantity = maxQty;
 
+  syncQuantityDisplay();
+  updateOrderTotal();
+}
+
+function setExactQuantity(val) {
+  if (!currentProduct) return;
+  const maxQty = getMaxAllowedQuantity();
+  const num = parseInt(val, 10) || 1;
+  orderQuantity = Math.max(1, Math.min(num, maxQty));
+  syncQuantityDisplay();
+  updateOrderTotal();
+}
+
+function handleQuantityInput(rawVal) {
+  if (!currentProduct) return;
+  if (rawVal === '') {
+    // 顧客正在打字中，先不清空
+    return;
+  }
+  const maxQty = getMaxAllowedQuantity();
+  const num = parseInt(rawVal, 10);
+  if (!isNaN(num) && num >= 1) {
+    orderQuantity = Math.min(num, maxQty);
+    updateOrderTotal();
+  }
+}
+
+function validateQuantityInput(inputElement) {
+  if (!currentProduct) return;
+  const maxQty = getMaxAllowedQuantity();
+  let num = parseInt(inputElement.value, 10);
+  if (isNaN(num) || num < 1) {
+    num = 1;
+  } else if (num > maxQty) {
+    num = maxQty;
+  }
+  orderQuantity = num;
+  inputElement.value = orderQuantity;
+  updateOrderTotal();
+}
+
+function syncQuantityDisplay() {
   const quantityElement = document.getElementById('quantity');
   if (quantityElement) {
-    quantityElement.textContent = orderQuantity;
+    if (quantityElement.tagName === 'INPUT') {
+      quantityElement.value = orderQuantity;
+    } else {
+      quantityElement.textContent = orderQuantity;
+    }
   }
-
-  updateOrderTotal();
 }
 
 function updateOrderTotal() {
