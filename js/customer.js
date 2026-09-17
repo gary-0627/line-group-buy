@@ -228,7 +228,10 @@ function renderUnavailableProduct(product) {
 function changeQuantity(delta) {
   if (!currentProduct) return;
 
-  const maxQty = currentProduct.maxQty > 0 ? currentProduct.maxQty : 999;
+  // 優先使用後端計算的剩餘庫存，避免選了超量後才被後端擋回
+  const maxQty = currentProduct.remainingQuantity != null
+    ? currentProduct.remainingQuantity
+    : (currentProduct.maxQty > 0 ? currentProduct.maxQty : 999);
   orderQuantity += delta;
 
   if (orderQuantity < 1) orderQuantity = 1;

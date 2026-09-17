@@ -113,7 +113,9 @@ async function verifyAdmin(idToken) {
     }
 
     currentUser = result.user;
-    currentAdmin = result.admin || (result.user ? { isAdmin: true, role: result.user.role || 'ADMIN' } : null);
+    // 後端 handleVerifyAdmin 已確認身分，success:true 代表是管理員
+    // 後端回傳 result.user.role（不會回傳 result.admin），直接建構 admin 物件
+    currentAdmin = { isAdmin: true, role: result.user.role || 'ADMIN' };
 
     if (!currentAdmin || !currentAdmin.isAdmin) {
       hideLoading();
