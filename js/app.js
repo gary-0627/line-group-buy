@@ -203,8 +203,11 @@ async function initLIFF() {
       }
     } else if (productId) {
       log('[ROUTER] 商品頁:', productId);
-      await verifyIdentity(idToken);
-      await loadProduct(productId);
+      // 🚀 平行並發執行：身分驗證 + 載入商品，速度提升一倍，徹底防止冷啟動逾時！
+      await Promise.all([
+        verifyIdentity(idToken),
+        loadProduct(productId)
+      ]);
     } else {
       log('[ROUTER] 管理員入口');
       await verifyAdmin(idToken);

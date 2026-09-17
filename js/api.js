@@ -2,7 +2,7 @@
  * LINE 團購系統 - API 呼叫與 Request 工具 (js/api.js)
  *************************************************/
 
-async function apiRequest(data, timeoutMs = 15000) {
+async function apiRequest(data, timeoutMs = 35000) {
   log('====================================');
   log('API Request Action:', data ? data.action : 'unknown');
 
@@ -54,7 +54,7 @@ async function apiRequest(data, timeoutMs = 15000) {
     clearTimeout(timer);
 
     if (error.name === 'AbortError') {
-      const timeoutError = new Error('伺服器連線逾時（超過 15 秒），請檢查網路或稍後再試');
+      const timeoutError = new Error('伺服器連線逾時，Google 伺服器正在啟動中，請重新整理重試');
       timeoutError.code = 'TIMEOUT';
       console.error('[API Timeout]', timeoutError);
       throw timeoutError;
