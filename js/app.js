@@ -84,6 +84,14 @@ async function verifyIdentity(idToken) {
   log('[IDENTITY] 驗證結果:', result);
 
   if (!result.success) {
+    const errorMsg = result.message || '';
+    // Token 過期 → 自動重新登入
+    if (errorMsg.includes('expired') || errorMsg.includes('Token 驗證失敗')) {
+      console.warn('[IDENTITY] Token 過期，重新登入');
+      liff.logout();
+      liff.login();
+      return;
+    }
     throw new Error(handleApiErrorMessage(result));
   }
 
@@ -107,21 +115,40 @@ async function verifyAdmin(idToken) {
     });
 
     if (!result || !result.success) {
-      hideLoading();
-      showNonAdminPage();
-      return;
+      /*
+       * 區分三種失敗情境：
+       * 1. NOT_ADMIN → 確定不是管理員，顯示一般使用者頁面
+       * 2. Token 相關錯誤 → 重新登入
+       * 3. 其他錯誤 → 顯示錯誤訊息
+       */
+      const errorCode = result ? result.error : '';
+      const errorMsg = result ? (result.message || '') : '';
+
+      if (errorCode === 'NOT_ADMIN') {
+        // 確認不是管理員
+        hideLoading();
+        showNonAdminPage();
+        return;
+      }
+
+      // Token 過期或無效 → 強制重新登入
+      if (errorCode === 'MISSING_ID_TOKEN' ||
+          errorMsg.includes('expired') ||
+          errorMsg.includes('Token 驗證失敗')) {
+        console.warn('[ADMIN] Token 過期或無效，重新登入');
+        hideLoading();
+        liff.logout();
+        liff.login();
+        return;
+      }
+
+      // 其他伺服器錯誤
+      throw new Error(handleApiErrorMessage(result));
     }
 
     currentUser = result.user;
     // 後端 handleVerifyAdmin 已確認身分，success:true 代表是管理員
-    // 後端回傳 result.user.role（不會回傳 result.admin），直接建構 admin 物件
     currentAdmin = { isAdmin: true, role: result.user.role || 'ADMIN' };
-
-    if (!currentAdmin || !currentAdmin.isAdmin) {
-      hideLoading();
-      showNonAdminPage();
-      return;
-    }
 
     renderAdminHome();
 
