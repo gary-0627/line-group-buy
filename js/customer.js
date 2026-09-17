@@ -149,6 +149,8 @@ function renderOrderForm(product) {
         我要訂購
       </div>
 
+      ${renderProductOptionsForm(product.options)}
+
       <div class="quantity-section">
         <label class="field-label">
           訂購數量
@@ -218,6 +220,77 @@ function renderOrderForm(product) {
       </button>
     </div>
   `;
+}
+
+function renderProductOptionsForm(options) {
+  if (!Array.isArray(options) || options.length === 0) {
+    return '';
+  }
+
+  let html = '<div class="product-options-container" style="margin-bottom:20px;">';
+
+  options.forEach((opt, idx) => {
+    const optName = opt.name || `規格 ${idx + 1}`;
+    const values = Array.isArray(opt.values) ? opt.values : [];
+    const isRequired = opt.required !== false;
+
+    html += `
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="field-label" style="font-weight:700;display:flex;align-items:center;gap:4px;">
+          <span>${escapeHtml(optName)}</span>
+          ${isRequired ? '<span style="color:#e11d48;font-size:12px;">*必選</span>' : ''}
+        </label>
+        <div class="option-chips-row" data-option-name="${escapeHtml(optName)}" style="display:flex;flex-wrap:wrap;gap:8px;">
+    `;
+
+    values.forEach(val => {
+      html += `
+        <button
+          type="button"
+          class="option-chip"
+          data-value="${escapeHtml(val)}"
+          onclick="selectOptionChip(this, '${escapeJs(optName)}', '${escapeJs(val)}')"
+          style="padding:8px 16px;border:1.5px solid #d1d5db;background:#fff;border-radius:8px;font-size:14px;font-weight:600;color:#374151;cursor:pointer;transition:all 0.15s;touch-action:manipulation;"
+        >
+          ${escapeHtml(val)}
+        </button>
+      `;
+    });
+
+    html += `
+        </div>
+        <input type="hidden" id="selected-option-${idx}" name="product-option" data-option-name="${escapeHtml(optName)}" value="">
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function selectOptionChip(button, optionName, value) {
+  const container = button.closest('.option-chips-row');
+  if (!container) return;
+
+  // 切換同組按鈕樣式
+  container.querySelectorAll('.option-chip').forEach(btn => {
+    btn.style.borderColor = '#d1d5db';
+    btn.style.background = '#fff';
+    btn.style.color = '#374151';
+    btn.classList.remove('selected');
+  });
+
+  button.style.borderColor = '#06c755';
+  button.style.background = '#f0fdf4';
+  button.style.color = '#06c755';
+  button.classList.add('selected');
+
+  // 將選取的值存入隱藏欄位
+  const group = button.closest('.form-group');
+  const input = group ? group.querySelector('input[name="product-option"]') : null;
+  if (input) {
+    input.value = value;
+  }
 }
 
 function renderUnavailableProduct(product) {
@@ -342,6 +415,29 @@ async function submitOrder() {
     return;
   }
 
+  // 收集並驗證客戶選擇的商品規格
+  const selectedOptions = [];
+  const productOptions = Array.isArray(currentProduct.options) ? currentProduct.options : [];
+
+  for (let i = 0; i < productOptions.length; i++) {
+    const opt = productOptions[i];
+    const optName = opt.name || `規格 ${i + 1}`;
+    const input = document.querySelector(`input[name="product-option"][data-option-name="${optName}"]`);
+    const val = input ? input.value.trim() : '';
+
+    if (opt.required !== false && !val) {
+      alert(`請選擇「${optName}」`);
+      return;
+    }
+
+    if (val) {
+      selectedOptions.push({
+        name: optName,
+        value: val
+      });
+    }
+  }
+
   try {
     if (button) {
       button.disabled = true;
@@ -357,13 +453,14 @@ async function submitOrder() {
 
     const requestId = generateRequestId();
     log('[ORDER] requestId:', requestId);
+    log('[ORDER] selectedOptions:', selectedOptions);
 
     const result = await apiRequest({
       action: 'createOrder',
       idToken: idToken,
       productId: currentProduct.productId,
       quantity: orderQuantity,
-      options: [],
+      options: selectedOptions,
       requestId: requestId
     });
 
@@ -420,6 +517,18 @@ function renderOrderSuccess(order) {
               <span class="product-info-label">訂單狀態</span>
               <span class="product-info-value">${getOrderStatusLabel(order.status)}</span>
             </div>
+            ${
+              Array.isArray(order.options) && order.options.length > 0
+                ? `
+                  <div class="product-info-row">
+                    <span class="product-info-label">選擇規格</span>
+                    <span class="product-info-value" style="color:#06c755;font-weight:600;">
+                      ${order.options.map(o => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ')}
+                    </span>
+                  </div>
+                `
+                : ''
+            }
           </div>
 
           <button class="button button-primary" onclick="showMyOrdersPage()">
@@ -475,33 +584,50 @@ function renderMyOrders(orders) {
       </div>
     `;
   } else {
-    orderHtml = orders.map(order => `
-      <div class="card" style="margin-bottom:12px">
-        <div style="font-size:18px;font-weight:700;margin-bottom:10px;">
-          ${escapeHtml(order.productName || '-')}
+    orderHtml = orders.map(order => {
+      let optionsText = '';
+      if (Array.isArray(order.options) && order.options.length > 0) {
+        optionsText = order.options.map(o => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ');
+      }
+
+      return `
+        <div class="card" style="margin-bottom:12px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:10px;">
+            ${escapeHtml(order.productName || '-')}
+          </div>
+          <div class="product-info-row">
+            <span class="product-info-label">訂單編號</span>
+            <span class="product-info-value">${escapeHtml(order.orderId || '-')}</span>
+          </div>
+          ${
+            optionsText
+              ? `
+                <div class="product-info-row">
+                  <span class="product-info-label">商品規格</span>
+                  <span class="product-info-value" style="color:#06c755;font-weight:600;">${optionsText}</span>
+                </div>
+              `
+              : ''
+          }
+          <div class="product-info-row">
+            <span class="product-info-label">數量</span>
+            <span class="product-info-value">${order.quantity || 0}</span>
+          </div>
+          <div class="product-info-row">
+            <span class="product-info-label">金額</span>
+            <span class="product-info-value">NT$ ${formatPrice(order.totalPrice || 0)}</span>
+          </div>
+          <div class="product-info-row">
+            <span class="product-info-label">狀態</span>
+            <span class="product-info-value">${getOrderStatusLabel(order.status)}</span>
+          </div>
+          <div class="product-info-row">
+            <span class="product-info-label">訂購時間</span>
+            <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
+          </div>
         </div>
-        <div class="product-info-row">
-          <span class="product-info-label">訂單編號</span>
-          <span class="product-info-value">${escapeHtml(order.orderId || '-')}</span>
-        </div>
-        <div class="product-info-row">
-          <span class="product-info-label">數量</span>
-          <span class="product-info-value">${order.quantity || 0}</span>
-        </div>
-        <div class="product-info-row">
-          <span class="product-info-label">金額</span>
-          <span class="product-info-value">NT$ ${formatPrice(order.totalPrice || 0)}</span>
-        </div>
-        <div class="product-info-row">
-          <span class="product-info-label">狀態</span>
-          <span class="product-info-value">${getOrderStatusLabel(order.status)}</span>
-        </div>
-        <div class="product-info-row">
-          <span class="product-info-label">訂購時間</span>
-          <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   app.innerHTML = `

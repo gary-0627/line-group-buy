@@ -978,6 +978,18 @@ function renderEditProductPage(product) {
         </div>
 
         <div class="form-group">
+          <label class="field-label">商品規格選項 (JSON 或空)</label>
+          <textarea
+            id="editProductOptions"
+            class="form-textarea"
+            rows="3"
+            style="font-family:monospace;font-size:13px;"
+            placeholder='例如：[{"name":"顏色","values":["黑","米白","卡其"],"required":true}]'
+          >${product.options && Array.isArray(product.options) && product.options.length > 0 ? escapeHtml(JSON.stringify(product.options, null, 2)) : ''}</textarea>
+          <div class="form-help" style="margin-top:4px;color:#777;font-size:12px;">由 AI 自動解析生成，亦可在此手動調整規格項目。如無規格請留空。</div>
+        </div>
+
+        <div class="form-group">
           <label class="field-label">商品說明文案</label>
           <textarea
             id="editProductDescription"
@@ -1017,6 +1029,21 @@ async function updateProduct() {
   const endAt = document.getElementById('editProductEndAt').value;
   const description = document.getElementById('editProductDescription').value.trim();
   const status = document.getElementById('editProductStatus').value;
+  const optionsRaw = document.getElementById('editProductOptions').value.trim();
+
+  let parsedOptions = [];
+  if (optionsRaw) {
+    try {
+      parsedOptions = JSON.parse(optionsRaw);
+      if (!Array.isArray(parsedOptions)) {
+        alert('商品規格選項必須是 JSON 陣列格式');
+        return;
+      }
+    } catch (e) {
+      alert('商品規格選項的 JSON 格式不正確：\n' + e.message);
+      return;
+    }
+  }
 
   if (!productId) {
     alert('缺少商品編號');
@@ -1069,6 +1096,7 @@ async function updateProduct() {
         startAt: startAt,
         endAt: endAt,
         description: description,
+        options: parsedOptions,
         status: status
       }
     });
