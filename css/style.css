@@ -1,0 +1,633 @@
+* {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: #f5f6f8;
+      color: #222;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans TC",
+        "Microsoft JhengHei",
+        sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 40px;
+    }
+
+    /* =========================
+       Loading
+    ========================= */
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 24px;
+
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .loading-box {
+      width: 100%;
+      max-width: 320px;
+      padding: 28px 20px;
+
+      text-align: center;
+
+      background: #fff;
+      border-radius: 16px;
+
+      box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+
+      margin: 0 auto 16px;
+
+      border: 4px solid #e5e7eb;
+      border-top-color: #06c755;
+
+      border-radius: 50%;
+
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-text {
+      color: #555;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* =========================
+       Error
+    ========================= */
+
+    #errorScreen {
+      display: none;
+    }
+
+    .error-box {
+      padding: 24px;
+
+      background: #fff;
+      border-radius: 16px;
+
+      box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .error-title {
+      margin: 0 0 12px;
+
+      color: #dc2626;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .error-message {
+      margin-bottom: 20px;
+
+      color: #555;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    /* =========================
+       Header
+    ========================= */
+
+    .header {
+      margin-bottom: 16px;
+    }
+
+    .header-title {
+      margin: 0;
+
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .header-subtitle {
+      margin-top: 6px;
+
+      color: #777;
+      font-size: 14px;
+    }
+
+    /* =========================
+       User Card
+    ========================= */
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      margin-bottom: 16px;
+      padding: 14px 16px;
+
+      background: #fff;
+      border-radius: 14px;
+
+      box-shadow:
+        0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-avatar {
+      width: 44px;
+      height: 44px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      background: #06c755;
+      color: #fff;
+
+      border-radius: 50%;
+
+      font-weight: 700;
+    }
+
+    .user-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .user-name {
+      font-weight: 700;
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-role {
+      margin-top: 3px;
+
+      color: #777;
+      font-size: 13px;
+    }
+
+    /* =========================
+       Card
+    ========================= */
+
+    .card {
+      margin-bottom: 16px;
+      padding: 20px;
+
+      background: #fff;
+      border-radius: 16px;
+
+      box-shadow:
+        0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-title {
+      margin: 0 0 16px;
+
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* =========================
+       Product
+    ========================= */
+
+    .product-status {
+      display: inline-flex;
+      align-items: center;
+
+      margin-bottom: 12px;
+      padding: 5px 10px;
+
+      border-radius: 999px;
+
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-open {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .status-draft {
+      background: #fef3c7;
+      color: #a16207;
+    }
+
+    .status-closed {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .product-name {
+      margin: 0 0 10px;
+
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .product-price {
+      margin-bottom: 14px;
+
+      color: #e11d48;
+
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .product-description {
+      margin-bottom: 18px;
+
+      color: #555;
+
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .product-info-row {
+      display: flex;
+      justify-content: space-between;
+
+      padding: 10px 0;
+
+      border-bottom: 1px solid #eee;
+
+      font-size: 14px;
+    }
+
+    .product-info-row:last-child {
+      border-bottom: 0;
+    }
+
+    .product-info-label {
+      color: #777;
+    }
+
+    .product-info-value {
+      font-weight: 600;
+      text-align: right;
+    }
+
+    /* =========================
+       Quantity
+    ========================= */
+
+    .quantity-section {
+      margin-top: 20px;
+    }
+
+    .field-label {
+      display: block;
+
+      margin-bottom: 8px;
+
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+
+      width: 100%;
+      max-width: 220px;
+
+      margin-bottom: 20px;
+    }
+
+    .quantity-button {
+      width: 48px;
+      height: 48px;
+
+      border: 1px solid #ddd;
+      background: #f8f8f8;
+
+      font-size: 24px;
+
+      border-radius: 10px;
+    }
+
+    .quantity-value {
+      flex: 1;
+
+      text-align: center;
+
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .total-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      margin-bottom: 18px;
+      padding: 16px;
+
+      background: #f8fafc;
+
+      border-radius: 12px;
+    }
+
+    .order-status-editor {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+    
+    .order-status-editor label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .order-status-editor .form-select {
+      width: 100%;
+    }
+
+    .total-label {
+      color: #555;
+    }
+
+    .total-price {
+      color: #e11d48;
+
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    /* =========================
+       Form
+    ========================= */
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+
+      padding: 13px 14px;
+
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+
+      background: #fff;
+
+      outline: none;
+
+      transition:
+        border-color 0.15s,
+        box-shadow 0.15s;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+      border-color: #06c755;
+
+      box-shadow:
+        0 0 0 3px rgba(6, 199, 85, 0.12);
+    }
+
+    .form-textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .form-help {
+      margin-top: 6px;
+
+      color: #888;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* =========================
+       Buttons
+    ========================= */
+
+    .button {
+      width: 100%;
+
+      min-height: 48px;
+
+      padding: 12px 16px;
+
+      border: 0;
+      border-radius: 10px;
+
+      font-weight: 700;
+
+      transition:
+        opacity 0.15s,
+        transform 0.05s;
+    }
+
+    .button:active {
+      transform: scale(0.98);
+    }
+
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .button-primary {
+      background: #06c755;
+      color: #fff;
+    }
+
+    .button-secondary {
+      background: #f1f5f9;
+      color: #333;
+    }
+
+    .button-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .button + .button {
+      margin-top: 10px;
+    }
+
+    /* =========================
+       Admin Menu
+    ========================= */
+
+    .admin-menu {
+      display: grid;
+
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+
+      gap: 12px;
+    }
+
+    .admin-menu-button {
+      min-height: 100px;
+
+      padding: 18px;
+
+      border: 0;
+
+      background: #f8fafc;
+
+      border-radius: 14px;
+
+      text-align: left;
+    }
+
+    .admin-menu-icon {
+      margin-bottom: 8px;
+
+      font-size: 26px;
+    }
+
+    .admin-menu-title {
+      font-weight: 700;
+    }
+
+    .admin-menu-description {
+      margin-top: 4px;
+
+      color: #777;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* =========================
+       Result
+    ========================= */
+
+    .success-box {
+      padding: 18px;
+
+      background: #f0fdf4;
+
+      border: 1px solid #bbf7d0;
+
+      border-radius: 12px;
+    }
+
+    .success-title {
+      margin-bottom: 8px;
+
+      color: #15803d;
+
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .link-box {
+      margin: 12px 0;
+
+      padding: 12px;
+
+      background: #fff;
+
+      border: 1px solid #ddd;
+      border-radius: 8px;
+
+      font-size: 13px;
+
+      word-break: break-all;
+    }
+
+    /* =========================
+       Navigation
+    ========================= */
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+
+      margin-bottom: 14px;
+
+      padding: 8px 0;
+
+      border: 0;
+      background: transparent;
+
+      color: #555;
+
+      font-size: 14px;
+    }
+
+    /* =========================
+       Mobile
+    ========================= */
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .product-name {
+        font-size: 23px;
+      }
+
+      .admin-menu {
+        grid-template-columns: 1fr;
+      }
+    }
