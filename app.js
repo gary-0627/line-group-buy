@@ -1,0 +1,304 @@
+/*************************************************
+ * LINE 團購系統 - 主程式與生命週期 (js/app.js)
+ *************************************************/
+
+/* =================================================
+ * Loading 遮罩控制（含逾時自動關閉安全保險）
+ * ================================================= */
+let loadingSafetyTimer = null;
+
+function setLoading(message = '載入中...') {
+  const loading = document.getElementById('loading');
+  const loadingText = document.getElementById('loadingText');
+
+  if (loadingText) {
+    loadingText.textContent = message;
+  }
+  if (loading) {
+    loading.style.display = 'flex';
+  }
+
+  // 🛡️ 雙重保險：任何 Loading 最多顯示 8 秒，超時自動關閉，絕對不卡畫面！
+  if (loadingSafetyTimer) clearTimeout(loadingSafetyTimer);
+  loadingSafetyTimer = setTimeout(() => {
+    hideLoading();
+  }, 8000);
+}
+
+function hideLoading() {
+  if (loadingSafetyTimer) {
+    clearTimeout(loadingSafetyTimer);
+    loadingSafetyTimer = null;
+  }
+  const loading = document.getElementById('loading');
+  if (loading) {
+    loading.style.display = 'none';
+  }
+}
+
+/* =================================================
+ * 錯誤訊息畫面
+ * ================================================= */
+function showError(message) {
+  console.error('[ERROR]', message);
+  hideLoading();
+
+  const app = document.getElementById('app');
+  const errorScreen = document.getElementById('errorScreen');
+  const errorMessage = document.getElementById('errorMessage');
+
+  if (app) {
+    app.style.display = 'none';
+  }
+  if (errorMessage) {
+    errorMessage.textContent = message;
+  }
+  if (errorScreen) {
+    errorScreen.style.display = 'block';
+  }
+}
+
+function renderProductError(message, productId) {
+  hideLoading();
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  app.style.display = 'block';
+  app.innerHTML = `
+    <div class="container">
+      <div class="card">
+        <div style="text-align:center;padding:24px 12px;">
+          <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:10px;">無法載入團購</div>
+          <div style="color:#e11d48;font-weight:600;line-height:1.6;margin-bottom:10px;">
+            ${escapeHtml(message || '找不到此團購商品')}
+          </div>
+          ${productId ? `<div style="color:#9ca3af;font-size:13px;margin-bottom:20px;">商品編號：<code>${escapeHtml(productId)}</code></div>` : ''}
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:280px;margin:0 auto;">
+            <button class="button button-primary" onclick="location.reload()">
+              🔄 重新整理重試
+            </button>
+            <button class="button button-secondary" onclick="showMyOrdersPage()">
+              📋 查看我的訂單
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* =================================================
+ * LINE 身分驗證 (顧客端 - 靜默背景同步，絕不阻塞畫面)
+ * ================================================= */
+async function syncIdentityInBackground(idToken) {
+  try {
+    log('[IDENTITY] 背景身分同步開始');
+
+    const result = await apiRequest({
+      action: 'verifyIdentity',
+      idToken: idToken
+    });
+
+    log('[IDENTITY] 背景驗證結果:', result);
+
+    if (result && result.success && result.user) {
+      currentUser = result.user;
+    }
+  } catch (err) {
+    console.warn('[IDENTITY] 背景身分同步略過:', err);
+  }
+}
+
+/* =================================================
+ * 管理員身分驗證 (管理端)
+ * ================================================= */
+async function verifyAdmin(idToken) {
+  setLoading('正在確認管理員權限...');
+
+  try {
+    if (!idToken) {
+      throw new Error('無法取得 LINE ID Token');
+    }
+
+    const result = await apiRequest({
+      action: 'verifyAdmin',
+      idToken: idToken
+    });
+
+    if (!result || !result.success) {
+      /*
+       * 區分三種失敗情境：
+       * 1. NOT_ADMIN → 確定不是管理員，顯示一般使用者頁面
+       * 2. Token 相關錯誤 → 重新登入
+       * 3. 其他錯誤 → 顯示錯誤訊息
+       */
+      const errorCode = result ? result.error : '';
+      const errorMsg = result ? (result.message || '') : '';
+
+      if (errorCode === 'NOT_ADMIN') {
+        // 確認不是管理員
+        hideLoading();
+        showNonAdminPage();
+        return;
+      }
+
+      // Token 過期或無效 → 強制重新登入
+      if (errorCode === 'MISSING_ID_TOKEN' ||
+          errorMsg.includes('expired') ||
+          errorMsg.includes('Token 驗證失敗')) {
+        console.warn('[ADMIN] Token 過期或無效，重新登入');
+        hideLoading();
+        liff.logout();
+        liff.login();
+        return;
+      }
+
+      // 其他伺服器錯誤
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    currentUser = result.user;
+    // 後端 handleVerifyAdmin 已確認身分，success:true 代表是管理員
+    currentAdmin = { isAdmin: true, role: result.user.role || 'ADMIN' };
+
+    renderAdminHome();
+
+  } catch (error) {
+    console.error('[ADMIN] 發生錯誤:', error);
+    showError('管理員驗證失敗：\n' + handleApiErrorMessage(error));
+  }
+}
+
+/* =================================================
+ * 路由參數解析（支援 search, liff.state, hash 與去斜線）
+ * ================================================= */
+function getRouteParams() {
+  const params = new URLSearchParams(window.location.search);
+  let p = params.get('p');
+  let edit = params.get('edit');
+
+  // 1. 若 search 內無直接參數，但有 liff.state，解析 liff.state
+  const liffState = params.get('liff.state');
+  if (liffState && (!p && !edit)) {
+    try {
+      let decoded = decodeURIComponent(liffState);
+      if (decoded.startsWith('/')) decoded = decoded.slice(1);
+      if (decoded.startsWith('?')) decoded = decoded.slice(1);
+      const stateParams = new URLSearchParams(decoded);
+      if (!p) p = stateParams.get('p');
+      if (!edit) edit = stateParams.get('edit');
+    } catch (err) {
+      console.warn('[ROUTER] 解析 liff.state 失敗:', err);
+    }
+  }
+
+  // 2. 若依然無參數，檢查 location.hash（部分 LINE 瀏覽器相容）
+  if ((!p && !edit) && window.location.hash) {
+    try {
+      let hash = window.location.hash.replace(/^#\/?/, '');
+      if (hash.startsWith('?')) hash = hash.slice(1);
+      const hashParams = new URLSearchParams(hash);
+      if (!p) p = hashParams.get('p');
+      if (!edit) edit = hashParams.get('edit');
+    } catch (err) {
+      console.warn('[ROUTER] 解析 hash 失敗:', err);
+    }
+  }
+
+  // 3. 清除字串前後斜線與空白（防止 trailing slash 導致商品查無資料）
+  if (p) {
+    p = p.replace(/\/+$/, '').trim();
+  }
+  if (edit) {
+    edit = edit.replace(/\/+$/, '').trim();
+  }
+
+  return { productId: p, editProductId: edit };
+}
+
+/* =================================================
+ * LIFF 初始化與路由分流
+ * ================================================= */
+async function initLIFF() {
+  setLoading('LIFF 初始化中...');
+
+  try {
+    log('[LIFF] 開始初始化');
+
+    await liff.init({
+      liffId: LIFF_ID
+    });
+
+    log('LIFF 初始化成功');
+
+    if (!liff.isLoggedIn()) {
+      log('[LIFF] 尚未登入，導向登入');
+      setLoading('正在登入 LINE...');
+      liff.login();
+      return;
+    }
+
+    const idToken = liff.getIDToken();
+    if (!idToken) {
+      throw new Error('無法取得 LINE ID Token');
+    }
+
+    // 取得顧客端基本資料（前端本地快取直接讀取，0 毫秒極速不卡頓、不佔用後端資源）
+    try {
+      const profile = await liff.getProfile();
+      currentUser = {
+        userId: profile.userId,
+        displayName: profile.displayName || 'LINE 使用者',
+        picture: profile.pictureUrl || null
+      };
+      log('[USER] 取得 LINE 個人資料:', currentUser.displayName);
+    } catch (profileErr) {
+      console.warn('[USER] 讀取 LIFF Profile 略過:', profileErr);
+    }
+
+    /*
+     * 路由判斷：
+     * ?edit=P202609160001 → 管理員直接進入該商品修改頁面
+     * ?p=P202609160001    → 客戶商品訂購頁
+     * 沒有參數             → 管理員後台入口
+     */
+    const { productId, editProductId } = getRouteParams();
+
+    if (editProductId) {
+      log('[ROUTER] 直接編輯商品:', editProductId);
+      await verifyAdmin(idToken);
+      if (currentAdmin && currentAdmin.isAdmin) {
+        await showEditProductPage(editProductId);
+      }
+    } else if (productId) {
+      log('[ROUTER] 商品頁:', productId);
+      // 🚀 關鍵優化：先直接載入商品（顧客立即看到商品、價格與規格，完全不卡冷啟動！）
+      await loadProduct(productId);
+      hideLoading(); // 確保遮罩完全關閉
+
+      // 背景向後端同步身分紀錄（完全靜默非阻塞，絕不蓋住畫面）
+      syncIdentityInBackground(idToken);
+    } else {
+      log('[ROUTER] 管理員入口');
+      await verifyAdmin(idToken);
+    }
+
+  } catch (error) {
+    console.error('[LIFF] 初始化失敗:', error);
+    showError('LINE 登入失敗：\n' + handleApiErrorMessage(error));
+  }
+}
+
+/* =================================================
+ * 應用程式啟動點
+ * ================================================= */
+document.addEventListener('DOMContentLoaded', function() {
+  log('====================================');
+  log('LINE 團購系統 Frontend Start');
+  log('LIFF ID:', LIFF_ID);
+  log('API URL:', API_URL);
+  log('====================================');
+
+  initLIFF();
+});
