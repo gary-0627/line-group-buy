@@ -1114,10 +1114,10 @@ function createOptionRowHTML(name, valuesStr, idx) {
         >
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;">
           <span style="font-size:11px;color:#6b7280;">快速填入範例：</span>
-          <button type="button" onclick="appendOptionSample(this, '3層30cm ($390), 3層40cm ($420)')" style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:11px;padding:2px 8px;cursor:pointer;">
+          <button type="button" onclick="appendOptionSample(this, 'A ($390), B ($420)')" style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:11px;padding:2px 8px;cursor:pointer;">
             不同尺寸不同價 ($390)
           </button>
-          <button type="button" onclick="appendOptionSample(this, '一般包裝, 禮盒包裝 (+$20)')" style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;color:#b45309;font-size:11px;padding:2px 8px;cursor:pointer;">
+          <button type="button" onclick="appendOptionSample(this, 'A, B (+$20)')" style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;color:#b45309;font-size:11px;padding:2px 8px;cursor:pointer;">
             加價購 (+$20)
           </button>
           <button type="button" onclick="appendOptionSample(this, '黑, 米白, 卡其')" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;color:#4b5563;font-size:11px;padding:2px 8px;cursor:pointer;">
