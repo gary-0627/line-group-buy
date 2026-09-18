@@ -3,7 +3,14 @@
  *************************************************/
 
 async function apiRequest(data, timeoutMs = 35000) {
-  const isReadAction = data && (data.action === 'getProduct' || data.action === 'getMyProducts' || data.action === 'getMyOrders');
+  const isReadAction = data && (
+    data.action === 'getProduct' ||
+    data.action === 'getMyProducts' ||
+    data.action === 'getMyOrders' ||
+    data.action === 'getAllOrders' ||
+    data.action === 'getPublicActiveProducts' ||
+    data.action === 'getAdmins'
+  );
 
   try {
     return await rawApiRequest(data, timeoutMs);

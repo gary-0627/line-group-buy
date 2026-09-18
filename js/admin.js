@@ -26,6 +26,20 @@ function renderAdminHome() {
         <div class="header-subtitle">管理員後台</div>
       </div>
 
+      <!-- 📊 即時營運儀表板 -->
+      <div id="dashboardPanel" class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📊 門市營運概況</span>
+          <span id="dashboardLoading" style="font-size:12px;color:#9ca3af;">載入中...</span>
+        </div>
+        <div id="dashboardContent" class="stat-grid" style="grid-template-columns:repeat(2, 1fr);gap:10px;">
+          <div class="stat-card" style="text-align:center;padding:12px 8px;"><div class="stat-value" style="color:#ccc;">—</div><div class="stat-label">進行中團購</div></div>
+          <div class="stat-card" style="text-align:center;padding:12px 8px;"><div class="stat-value" style="color:#ccc;">—</div><div class="stat-label">待取貨訂單</div></div>
+          <div class="stat-card" style="text-align:center;padding:12px 8px;"><div class="stat-value" style="color:#ccc;">—</div><div class="stat-label">本月營業額</div></div>
+          <div class="stat-card" style="text-align:center;padding:12px 8px;"><div class="stat-value" style="color:#ccc;">—</div><div class="stat-label">本月訂單筆數</div></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">管理功能</div>
         <div class="admin-menu">
@@ -41,10 +55,22 @@ function renderAdminHome() {
             <div class="admin-menu-description">查看與共管所有團購商品</div>
           </button>
 
+          <button class="admin-menu-button" style="border-left:4px solid #f59e0b;" onclick="openVendorOrderingHub()">
+            <div class="admin-menu-icon">📋</div>
+            <div class="admin-menu-title" style="color:#b45309;">廠商叫貨專區</div>
+            <div class="admin-menu-description">集中查看待向廠商訂貨商品與叫貨單</div>
+          </button>
+
           <button class="admin-menu-button" onclick="showAllOrdersPage()">
             <div class="admin-menu-icon">🧾</div>
             <div class="admin-menu-title">所有訂單</div>
-            <div class="admin-menu-description">查看所有客戶訂單</div>
+            <div class="admin-menu-description">跨商品整批核銷與客戶全域搜尋</div>
+          </button>
+
+          <button class="admin-menu-button" style="border-left:4px solid #2563eb;" onclick="generateBatchPickupReminder()">
+            <div class="admin-menu-icon">📢</div>
+            <div class="admin-menu-title" style="color:#1d4ed8;">批量催取提醒</div>
+            <div class="admin-menu-description">跨商品一鍵生成未取貨催單文案</div>
           </button>
 
           ${
@@ -75,7 +101,134 @@ function renderAdminHome() {
     </div>
   `;
 
+  // 非阻塞載入儀表板數據
+  loadDashboardStats();
+
   log('[ADMIN] renderAdminHome 完成');
+}
+
+/**
+ * 非同步載入儀表板統計數據
+ */
+async function loadDashboardStats() {
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) return;
+
+    const result = await apiRequest({
+      action: 'getDashboardStats',
+      idToken: idToken
+    });
+
+    if (!result.success) return;
+
+    const s = result.stats || {};
+    const panel = document.getElementById('dashboardContent');
+    const loadingEl = document.getElementById('dashboardLoading');
+    if (loadingEl) loadingEl.textContent = '';
+    if (!panel) return;
+
+    panel.innerHTML = `
+      <div class="stat-card" style="text-align:center;padding:12px 8px;">
+        <div class="stat-value" style="font-size:22px;color:#059669;">${s.activeProducts || 0}</div>
+        <div class="stat-label" style="font-size:12px;">進行中團購</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:12px 8px;">
+        <div class="stat-value" style="font-size:22px;color:#f59e0b;">${s.pendingPickupOrders || 0}</div>
+        <div class="stat-label" style="font-size:12px;">待取貨訂單</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:12px 8px;">
+        <div class="stat-value" style="font-size:22px;color:#e11d48;">NT$ ${formatPrice(s.monthlyRevenue || 0)}</div>
+        <div class="stat-label" style="font-size:12px;">本月營業額</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:12px 8px;">
+        <div class="stat-value" style="font-size:22px;color:#2563eb;">${s.monthlyOrderCount || 0}</div>
+        <div class="stat-label" style="font-size:12px;">本月訂單筆數</div>
+      </div>
+    `;
+  } catch (err) {
+    console.warn('[DASHBOARD]', err);
+    const loadingEl = document.getElementById('dashboardLoading');
+    if (loadingEl) loadingEl.textContent = '';
+  }
+}
+
+/**
+ * 批量催取提醒 — 跨商品一鍵生成所有到店商品的未取貨催單文案
+ */
+async function generateBatchPickupReminder() {
+  setLoading('正在載入待取貨資訊...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'getAllOrders',
+      idToken: idToken
+    });
+
+    if (!result.success) throw new Error(handleApiErrorMessage(result));
+
+    const orders = result.orders || [];
+
+    // 篩出非已完成、非取消的訂單（只看所屬商品已到店 ARRIVED 的）
+    const pendingOrders = orders.filter(o =>
+      o.status !== ORDER_STATUS.COMPLETED &&
+      o.status !== ORDER_STATUS.CANCELLED &&
+      o.productStatus === 'ARRIVED'
+    );
+
+    if (pendingOrders.length === 0) {
+      hideLoading();
+      alert('🎉 太棒了！目前所有到店商品的訂單都已完成取貨，無須催單！');
+      return;
+    }
+
+    // 依顧客分組
+    const customerMap = {};
+    pendingOrders.forEach(o => {
+      const name = o.displayName || 'LINE 顧客';
+      if (!customerMap[name]) customerMap[name] = [];
+      customerMap[name].push(o);
+    });
+
+    const lines = [
+      '【天增團購 - 批量取貨提醒】',
+      `📅 日期：${new Date().toLocaleDateString('zh-TW')}`,
+      `📊 共 ${Object.keys(customerMap).length} 位顧客、${pendingOrders.length} 筆訂單尚未取貨`,
+      '=========================',
+      ''
+    ];
+
+    Object.entries(customerMap).forEach(([name, customerOrders]) => {
+      const total = customerOrders.reduce((sum, o) => sum + (o.totalPrice || (o.unitPrice * o.quantity) || 0), 0);
+      lines.push(`👤 ${name}（${customerOrders.length} 件，共 NT$ ${formatPrice(total)}）`);
+      customerOrders.forEach(o => {
+        const optStr = formatOrderOptionsText(o.options);
+        lines.push(`   📦 ${o.productName} × ${o.quantity}${optStr !== '基本款' ? ` (${optStr})` : ''}`);
+      });
+      lines.push('');
+    });
+
+    lines.push('=========================');
+    lines.push('💡 溫馨提醒：以上商品已到店，請記得來門市取貨喔！');
+
+    const text = lines.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      hideLoading();
+      alert(`✅ 批量催單文案已複製到剪貼簿！\n\n共 ${Object.keys(customerMap).length} 位顧客、${pendingOrders.length} 筆待取訂單。\n\n可直接貼到 LINE 群組或逐一私訊。`);
+    } catch (e) {
+      hideLoading();
+      prompt('複製失敗，請手動複製下方文字：', text);
+    }
+  } catch (err) {
+    console.error('[BATCH REMINDER]', err);
+    alert('載入失敗：' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
 }
 
 function renderUserCard() {
@@ -160,7 +313,7 @@ function showCreateProductPage() {
         </div>
 
         <div class="form-group">
-          <label class="field-label">截止時間 *</label>
+          <label class="field-label">截止時間（選填，留空代表常態團購、無截止時間）</label>
           <input
             id="productEndAt"
             class="form-input"
@@ -244,12 +397,12 @@ async function createProduct() {
     return;
   }
 
-  if (!startAt || !endAt) {
-    alert('請設定開始與截止時間');
+  if (!startAt) {
+    alert('請設定開始時間');
     return;
   }
 
-  if (new Date(endAt) <= new Date(startAt)) {
+  if (startAt && endAt && new Date(endAt) <= new Date(startAt)) {
     alert('截止時間必須晚於開始時間');
     return;
   }
@@ -443,6 +596,20 @@ function switchProductStageFilter(stage) {
   renderMyProductsPage(window.adminProductsCache);
 }
 
+let adminProductSearchTimer = null;
+function handleAdminProductSearch(val) {
+  window.adminProductSearchQuery = val;
+  if (adminProductSearchTimer) clearTimeout(adminProductSearchTimer);
+  adminProductSearchTimer = setTimeout(() => {
+    renderMyProductsPage(window.adminProductsCache);
+    const input = document.getElementById('adminProductSearchInput');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  }, 120);
+}
+
 function renderMyProductsPage(products) {
   const app = document.getElementById('app');
 
@@ -464,9 +631,19 @@ function renderMyProductsPage(products) {
   });
 
   const curFilter = window.currentAdminStageFilter || 'ALL';
-  const filteredProducts = curFilter === 'ALL'
+  const searchQuery = (window.adminProductSearchQuery || '').trim().toLowerCase();
+
+  let filteredProducts = curFilter === 'ALL'
     ? products
     : products.filter(p => String(p.status || '').toUpperCase() === curFilter);
+
+  // 關鍵字搜尋
+  if (searchQuery) {
+    filteredProducts = filteredProducts.filter(p =>
+      String(p.productName || '').toLowerCase().includes(searchQuery) ||
+      String(p.productId || '').toLowerCase().includes(searchQuery)
+    );
+  }
 
   let html = `
     <div class="container">
@@ -507,6 +684,35 @@ function renderMyProductsPage(products) {
           🎉 全數完結 (${counts.FINISHED})
         </div>
       </div>
+
+      <!-- 商品搜尋框 -->
+      <div style="margin-bottom:12px;">
+        <input
+          type="text"
+          id="adminProductSearchInput"
+          class="form-input"
+          placeholder="🔍 搜尋商品名稱或編號..."
+          value="${escapeHtml(window.adminProductSearchQuery || '')}"
+          oninput="handleAdminProductSearch(this.value)"
+          style="font-size:14px;padding:10px 14px;"
+        >
+      </div>
+
+      <!-- 待叫貨集中提醒橫幅 -->
+      ${
+        counts.CLOSED_PENDING_ORDER > 0 && curFilter !== 'CLOSED_PENDING_ORDER'
+          ? `
+            <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+              <div style="color:#b45309;font-weight:700;font-size:14px;">
+                📢 目前有 ${counts.CLOSED_PENDING_ORDER} 檔團購已截止，等待向廠商叫貨！
+              </div>
+              <button class="quick-action-btn btn-amber" onclick="switchProductStageFilter('CLOSED_PENDING_ORDER')">
+                查看叫貨專區 →
+              </button>
+            </div>
+          `
+          : ''
+      }
   `;
 
   if (!filteredProducts.length) {
@@ -527,9 +733,10 @@ function renderMyProductsPage(products) {
 
       const uncollected = product.uncollectedCount !== undefined ? product.uncollectedCount : (product.orderCount || 0);
       const completed = product.completedCount !== undefined ? product.completedCount : 0;
+      const isPendingOrder = product.status === 'CLOSED_PENDING_ORDER';
 
       html += `
-        <div class="card" id="product-card-${escapeHtml(product.productId)}" style="border-left: 4px solid #06c755; margin-bottom:14px;">
+        <div class="card" id="product-card-${escapeHtml(product.productId)}" style="border-left: 4px solid ${isPendingOrder ? '#f59e0b' : '#06c755'}; margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div class="stage-badge ${stageInfo.badgeClass}">
               <span>${stageInfo.icon}</span>
@@ -565,8 +772,51 @@ function renderMyProductsPage(products) {
 
           <div class="product-info-row">
             <span class="product-info-label">截止時間</span>
-            <span class="product-info-value">${formatDateTime(product.endAt)}</span>
+            <span class="product-info-value">${product.endAt ? formatDateTime(product.endAt) : '<span style="color:#06c755;font-weight:600;">常態團購（無截止日）</span>'}</span>
           </div>
+
+          <!-- 📋 集中叫貨明細卡（當處於待向廠商叫貨階段時，直接列出各規格件數） -->
+          ${
+            isPendingOrder
+              ? `
+                <div style="background:#fffbeb;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin:12px 0;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-weight:700;color:#b45309;font-size:14px;">📋 待叫貨明細 (${product.totalQuantity || 0} 件)</span>
+                    <span style="font-size:12px;color:#d97706;font-weight:600;">有效訂單 ${product.orderCount || 0} 筆</span>
+                  </div>
+                  <div style="background:#fff;border-radius:6px;padding:8px 10px;border:1px solid #fde68a;font-size:13px;max-height:160px;overflow-y:auto;">
+                    ${
+                      product.optionTally && Object.keys(product.optionTally).length > 0
+                        ? Object.entries(product.optionTally).map(([opt, qty]) => `
+                          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #fde68a;">
+                            <span style="color:#334155;font-weight:600;">• ${escapeHtml(opt)}</span>
+                            <span style="font-weight:700;color:#d97706;">${qty} 件</span>
+                          </div>
+                        `).join('')
+                        : `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#334155;font-weight:600;">• 基本款</span><span style="font-weight:700;color:#d97706;">${product.totalQuantity || 0} 件</span></div>`
+                    }
+                  </div>
+                  <!-- 一鍵快速叫貨與複製按鈕 -->
+                  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                    <button
+                      class="quick-action-btn btn-blue"
+                      style="flex:2;padding:10px;font-weight:700;justify-content:center;"
+                      onclick="advanceProductStageDirect('${escapeJs(product.productId)}', 'ORDERED', '${escapeJs(product.productName)}')"
+                    >
+                      🚚 點擊直接改為：已叫貨
+                    </button>
+                    <button
+                      class="quick-action-btn btn-amber"
+                      style="flex:1;padding:10px;font-weight:700;justify-content:center;"
+                      onclick="copyProductTallyDirect('${escapeJs(product.productId)}')"
+                    >
+                      📋 複製叫貨單
+                    </button>
+                  </div>
+                </div>
+              `
+              : ''
+          }
 
           <!-- 快捷操作按鈕 -->
           <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -602,6 +852,96 @@ function renderMyProductsPage(products) {
 
   html += `</div>`;
   app.innerHTML = html;
+}
+
+function openVendorOrderingHub() {
+  window.currentAdminStageFilter = 'CLOSED_PENDING_ORDER';
+  showMyProductsPage();
+}
+
+/**
+ * 在清單卡片上一鍵將商品標記為已叫貨
+ */
+async function advanceProductStageDirect(productId, nextStage, productName) {
+  const stageInfo = getProductStageInfo(nextStage);
+  if (!confirm(`確定已向廠商下單「${productName}」了嗎？\n\n點擊確認後將直接推進為「${stageInfo.label}」！`)) {
+    return;
+  }
+
+  setLoading('正在更新叫貨狀態...');
+
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'updateProductStage',
+      idToken: idToken,
+      productId: productId,
+      stage: nextStage
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    // 本地同步更新快取，無須重新請求全部清單
+    if (Array.isArray(window.adminProductsCache)) {
+      const p = window.adminProductsCache.find(x => x.productId === productId);
+      if (p) p.status = nextStage;
+    }
+
+    alert(`✅ 已將「${productName}」推進為「${stageInfo.label}」！`);
+    renderMyProductsPage(window.adminProductsCache);
+
+  } catch (error) {
+    console.error('[ADVANCE STAGE DIRECT]', error);
+    alert('更新失敗：' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * 在清單卡片上一鍵複製廠商叫貨單
+ */
+async function copyProductTallyDirect(productId) {
+  const product = (window.adminProductsCache || []).find(p => p.productId === productId);
+  if (!product) {
+    alert('找不到商品資訊');
+    return;
+  }
+
+  const tally = product.optionTally || {};
+  const lines = [
+    `【天增團購 - 廠商叫貨單】`,
+    `📦 商品：${product.productName}`,
+    `💰 團購售價：NT$ ${formatPrice(product.price)}`,
+    `📊 有效訂單：${product.orderCount || 0} 筆`,
+    `📦 叫貨總件數：${product.totalQuantity || 0} 件`,
+    `=========================`,
+    `規格叫貨明細：`
+  ];
+
+  if (Object.keys(tally).length > 0) {
+    Object.entries(tally).forEach(([opt, qty]) => {
+      lines.push(`• ${opt}：${qty} 件`);
+    });
+  } else {
+    lines.push(`• 基本規格：${product.totalQuantity || 0} 件`);
+  }
+
+  lines.push(`=========================`);
+  lines.push(`叫貨統整時間：${formatDateTime(new Date())}`);
+
+  const text = lines.join('\n');
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('✅ 廠商叫貨單已成功複製到剪貼簿！\n可直接開啟 LINE 貼給廠商叫貨。');
+  } catch (e) {
+    prompt('複製失敗，請手動複製下方文字：', text);
+  }
 }
 
 /* =================================================
@@ -966,6 +1306,17 @@ function renderOrderCardsHtml(orders) {
           <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
         </div>
 
+        ${
+          order.notes
+            ? `
+              <div class="product-info-row" style="background:#fffbeb;padding:4px 8px;border-radius:6px;margin:4px 0;">
+                <span class="product-info-label" style="color:#b45309;">📝 顧客備註</span>
+                <span class="product-info-value" style="color:#92400e;font-weight:600;">${escapeHtml(order.notes)}</span>
+              </div>
+            `
+            : ''
+        }
+
         <!-- 門市現場取貨收款一鍵完成按鈕 -->
         <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div id="quick-action-area-${escapeHtml(order.orderId)}">
@@ -1319,7 +1670,7 @@ function exportOrdersCSV() {
   }
 
   const bom = '\uFEFF';
-  let csv = bom + '訂單編號,下單時間,顧客名稱,商品規格,訂購數量,單價,總金額,訂單狀態\r\n';
+  let csv = bom + '訂單編號,下單時間,顧客名稱,商品規格,訂購數量,單價,總金額,訂單狀態,顧客備註\r\n';
 
   orders.forEach(o => {
     let optStr = '';
@@ -1337,7 +1688,8 @@ function exportOrdersCSV() {
       o.quantity || 0,
       o.unitPrice || 0,
       o.totalPrice || 0,
-      getOrderStatusLabel(o.status)
+      getOrderStatusLabel(o.status),
+      o.notes || ''
     ];
 
     const escapedRow = row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
@@ -1356,44 +1708,654 @@ function exportOrdersCSV() {
   URL.revokeObjectURL(url);
 }
 
-function showAllOrdersPage() {
-  hideLoading();
-  const app = document.getElementById('app');
+/* =================================================
+ * 跨商品所有訂單頁面 (showAllOrdersPage & renderAllOrdersPage)
+ * ================================================= */
+async function showAllOrdersPage() {
+  setLoading('正在載入所有門市訂單...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
 
-  app.innerHTML = `
-    <div class="container">
-      <button class="back-button" onclick="renderAdminHome()">
-        ← 返回管理首頁
-      </button>
+    const result = await apiRequest({
+      action: 'getAllOrders',
+      idToken: idToken
+    });
 
-      <div class="card">
-        <div class="card-title">所有訂單</div>
-        <div style="color:#777;line-height:1.6;">
-          如需按商品查看訂單，請至「團購清單」點選各商品的「查看訂單」。
-        </div>
-      </div>
-    </div>
-  `;
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    window.allOrdersCache = result.orders || [];
+    window.allOrdersFilter = window.allOrdersFilter || 'ALL';
+    window.allOrdersSearch = window.allOrdersSearch || '';
+
+    renderAllOrdersPage();
+  } catch (error) {
+    console.error('[ALL ORDERS]', error);
+    alert('載入所有訂單失敗：\n' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
 }
 
-function showSystemPage() {
+function renderAllOrdersPage() {
   hideLoading();
   const app = document.getElementById('app');
+  if (!app) return;
 
-  app.innerHTML = `
+  const orders = window.allOrdersCache || [];
+  const activeFilter = window.allOrdersFilter || 'ALL';
+  const query = (window.allOrdersSearch || '').trim().toLowerCase();
+
+  // 統計總數
+  const totalCount = orders.length;
+  const pendingOrders = orders.filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED);
+  const completedOrders = orders.filter(o => o.status === ORDER_STATUS.COMPLETED);
+  const cancelledOrders = orders.filter(o => o.status === ORDER_STATUS.CANCELLED);
+
+  // 根據搜尋與篩選條件過濾
+  let filtered = orders.filter(o => {
+    // 狀態篩選
+    if (activeFilter === 'PENDING') {
+      if (o.status === ORDER_STATUS.COMPLETED || o.status === ORDER_STATUS.CANCELLED) return false;
+    } else if (activeFilter === 'COMPLETED') {
+      if (o.status !== ORDER_STATUS.COMPLETED) return false;
+    } else if (activeFilter === 'CANCELLED') {
+      if (o.status !== ORDER_STATUS.CANCELLED) return false;
+    }
+
+    // 關鍵字搜尋（比對顧客姓名、商品名稱、訂單編號、規格）
+    if (query) {
+      const matchName = String(o.displayName || '').toLowerCase().includes(query);
+      const matchProd = String(o.productName || '').toLowerCase().includes(query);
+      const matchId = String(o.orderId || '').toLowerCase().includes(query);
+      let matchOpt = false;
+      if (Array.isArray(o.options)) {
+        matchOpt = o.options.some(opt => String(opt.value || '').toLowerCase().includes(query));
+      } else if (typeof o.options === 'string') {
+        matchOpt = o.options.toLowerCase().includes(query);
+      }
+      return matchName || matchProd || matchId || matchOpt;
+    }
+    return true;
+  });
+
+  // 若搜尋欄有輸入關鍵字，檢查比對出的顧客待取貨總計（跨商品聚合核銷功能）
+  let matchedCustomerPendingOrders = [];
+  let matchedCustomerName = '';
+  let matchedCustomerTotalAmount = 0;
+
+  if (query) {
+    matchedCustomerPendingOrders = filtered.filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED);
+    if (matchedCustomerPendingOrders.length > 0) {
+      matchedCustomerName = matchedCustomerPendingOrders[0].displayName || query;
+      matchedCustomerTotalAmount = matchedCustomerPendingOrders.reduce((sum, o) => sum + (o.totalPrice || (o.unitPrice * o.quantity) || 0), 0);
+    }
+  }
+
+  let html = `
     <div class="container">
+      ${renderUserCard()}
+
       <button class="back-button" onclick="renderAdminHome()">
         ← 返回管理首頁
       </button>
 
-      <div class="card">
-        <div class="card-title">系統管理</div>
-        <div style="color:#777;line-height:1.6;">
-          OWNER 專用功能將在後續加入。目前所有設定於 Google Sheet「Admins」與「Settings」維護。
+      <div class="header">
+        <h1 class="header-title">門市所有訂單</h1>
+        <div class="header-subtitle">跨商品訂單整合與現場快速核銷</div>
+      </div>
+
+      <!-- 統計摘要 -->
+      <div class="stat-grid" style="grid-template-columns:repeat(3, 1fr);margin-bottom:16px;">
+        <div class="stat-card" style="text-align:center;padding:12px 6px;">
+          <div class="stat-value" style="font-size:22px;color:#f59e0b;">${pendingOrders.length}</div>
+          <div class="stat-label" style="font-size:12px;">待取貨</div>
         </div>
+        <div class="stat-card" style="text-align:center;padding:12px 6px;">
+          <div class="stat-value" style="font-size:22px;color:#10b981;">${completedOrders.length}</div>
+          <div class="stat-label" style="font-size:12px;">已取貨</div>
+        </div>
+        <div class="stat-card" style="text-align:center;padding:12px 6px;">
+          <div class="stat-value" style="font-size:22px;color:#6b7280;">${totalCount}</div>
+          <div class="stat-label" style="font-size:12px;">全部筆數</div>
+        </div>
+      </div>
+
+      <!-- 現場跨商品快速核銷搜尋框 -->
+      <div class="card" style="padding:14px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+          <span>🔍 現場櫃台即時搜尋</span>
+          <button class="button button-secondary button-small" style="font-size:12px;padding:4px 8px;" onclick="exportAllOrdersCSV()">📥 匯出 CSV</button>
+        </div>
+        <input
+          type="text"
+          id="allOrdersSearchInput"
+          class="form-input"
+          placeholder="輸入客人姓名/LINE暱稱、商品名或單號..."
+          value="${escapeHtml(window.allOrdersSearch || '')}"
+          oninput="handleAllOrdersSearchInput(this.value)"
+          style="font-size:15px;"
+        >
+
+        <!-- 狀態過濾標籤 -->
+        <div style="display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:4px;">
+          <button class="button button-small ${activeFilter === 'ALL' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('ALL')">全部 (${totalCount})</button>
+          <button class="button button-small ${activeFilter === 'PENDING' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'PENDING' ? 'background:#f59e0b;border-color:#f59e0b;' : ''}" onclick="setAllOrdersFilter('PENDING')">🏪 待取貨 (${pendingOrders.length})</button>
+          <button class="button button-small ${activeFilter === 'COMPLETED' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'COMPLETED' ? 'background:#10b981;border-color:#10b981;' : ''}" onclick="setAllOrdersFilter('COMPLETED')">✅ 已取貨 (${completedOrders.length})</button>
+          <button class="button button-small ${activeFilter === 'CANCELLED' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('CANCELLED')">已取消 (${cancelledOrders.length})</button>
+        </div>
+      </div>
+
+      <!-- 🚀 當搜尋到特定客人且有待取商品時，直出「跨商品一鍵全部核銷」橫幅 -->
+      ${
+        matchedCustomerPendingOrders.length > 0
+          ? `
+            <div class="card" style="background:#fef3c7;border:2px solid #f59e0b;padding:16px;margin-bottom:16px;border-radius:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-weight:800;font-size:16px;color:#92400e;">
+                    👤 客戶【${escapeHtml(matchedCustomerName)}】共有 ${matchedCustomerPendingOrders.length} 件商品待領取
+                  </div>
+                  <div style="font-size:14px;color:#b45309;margin-top:2px;">
+                    應收總金額：<strong style="font-size:18px;color:#b91c1c;">NT$ ${formatPrice(matchedCustomerTotalAmount)}</strong>
+                  </div>
+                </div>
+                <button
+                  class="button button-primary"
+                  style="background:#16a34a;border-color:#16a34a;padding:10px 16px;font-weight:700;font-size:14px;box-shadow:0 4px 10px rgba(22,163,74,0.3);"
+                  onclick="batchCompleteCustomerOrders(${escapeJs(JSON.stringify(matchedCustomerPendingOrders.map(o => o.orderId)))}, '${escapeJs(matchedCustomerName)}', ${matchedCustomerTotalAmount})"
+                >
+                  ⚡ 一鍵全部核銷收款 (${matchedCustomerPendingOrders.length} 件)
+                </button>
+              </div>
+            </div>
+          `
+          : ''
+      }
+
+      <!-- 訂單清單 -->
+      <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:#6b7280;font-weight:600;">顯示 ${filtered.length} 筆訂單</span>
+        ${query ? `<button style="border:none;background:none;color:#ef4444;font-size:12px;cursor:pointer;text-decoration:underline;" onclick="clearAllOrdersSearch()">✕ 清除搜尋</button>` : ''}
+      </div>
+  `;
+
+  if (filtered.length === 0) {
+    html += `
+      <div class="card" style="text-align:center;padding:32px 16px;color:#9ca3af;">
+        <div style="font-size:36px;margin-bottom:8px;">📭</div>
+        <div style="font-size:15px;font-weight:600;">沒有符合條件的訂單</div>
+      </div>
+    `;
+  } else {
+    filtered.forEach(order => {
+      const isCompleted = order.status === ORDER_STATUS.COMPLETED;
+      const isCancelled = order.status === ORDER_STATUS.CANCELLED;
+      const isPending = !isCompleted && !isCancelled;
+      const optStr = formatOrderOptionsText(order.options);
+      const prodStageInfo = getProductStageInfo(order.productStatus || 'UNKNOWN');
+
+      html += `
+        <div class="card" style="padding:14px;margin-bottom:12px;border-left:4px solid ${isCompleted ? '#10b981' : isCancelled ? '#9ca3af' : '#f59e0b'};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <div style="font-weight:700;font-size:15px;color:#111;">
+                👤 ${escapeHtml(order.displayName || 'LINE 顧客')}
+              </div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+                單號：<code>${escapeHtml(order.orderId)}</code> · ${formatDateTime(order.createdAt)}
+              </div>
+            </div>
+            <div>
+              ${
+                isCompleted
+                  ? '<span class="status-badge" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">✅ 已取貨收款</span>'
+                  : isCancelled
+                    ? '<span class="status-badge" style="background:#f3f4f6;color:#6b7280;">已取消</span>'
+                    : '<span class="status-badge" style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;">🏪 待取貨</span>'
+              }
+            </div>
+          </div>
+
+          <!-- 商品名稱與所屬商品狀態標籤 -->
+          <div style="background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <span style="font-weight:700;color:#1e293b;font-size:14px;">📦 ${escapeHtml(order.productName || '團購商品')}</span>
+              <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#e2e8f0;color:#334155;">${prodStageInfo.badge}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#475569;margin-top:6px;">
+              <span>規格：<strong>${escapeHtml(optStr)}</strong> × <strong>${order.quantity}</strong></span>
+              <span style="font-weight:700;color:#b91c1c;font-size:14px;">NT$ ${formatPrice(order.totalPrice || (order.unitPrice * order.quantity))}</span>
+            </div>
+            ${
+              order.notes
+                ? `
+                  <div style="margin-top:6px;font-size:12px;color:#b45309;background:#fffbeb;padding:4px 8px;border-radius:6px;">
+                    📝 備註：${escapeHtml(order.notes)}
+                  </div>
+                `
+                : ''
+            }
+          </div>
+
+          <!-- 操作按鈕 -->
+          ${
+            isPending
+              ? `
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <button
+                    class="button button-primary button-small"
+                    style="background:#16a34a;border-color:#16a34a;padding:6px 14px;font-weight:700;"
+                    onclick="completeSingleOrderInAll('${escapeJs(order.orderId)}', '${escapeJs(order.displayName)}')"
+                  >
+                    ✅ 現場取貨收款完成
+                  </button>
+                </div>
+              `
+              : ''
+          }
+        </div>
+      `;
+    });
+  }
+
+  html += `</div>`;
+  app.innerHTML = html;
+}
+
+let allOrdersSearchTimeout = null;
+function handleAllOrdersSearchInput(val) {
+  window.allOrdersSearch = val;
+  if (allOrdersSearchTimeout) clearTimeout(allOrdersSearchTimeout);
+  allOrdersSearchTimeout = setTimeout(() => {
+    renderAllOrdersPage();
+    const input = document.getElementById('allOrdersSearchInput');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  }, 100);
+}
+
+function clearAllOrdersSearch() {
+  window.allOrdersSearch = '';
+  renderAllOrdersPage();
+}
+
+function setAllOrdersFilter(filter) {
+  window.allOrdersFilter = filter;
+  renderAllOrdersPage();
+}
+
+/**
+ * 跨商品一鍵全部核銷收款
+ */
+async function batchCompleteCustomerOrders(orderIds, customerName, totalAmount) {
+  if (!orderIds || orderIds.length === 0) return;
+  const ok = confirm(`確認已向客戶【${customerName}】收取現金 NT$ ${formatPrice(totalAmount)}，並核銷這 ${orderIds.length} 筆待取商品？`);
+  if (!ok) return;
+
+  setLoading('正在處理整批核銷收款...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'batchUpdateOrderStatus',
+      idToken: idToken,
+      orderIds: orderIds,
+      status: ORDER_STATUS.COMPLETED
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    const idSet = {};
+    orderIds.forEach(id => idSet[id] = true);
+    if (window.allOrdersCache) {
+      window.allOrdersCache.forEach(o => {
+        if (idSet[o.orderId]) o.status = ORDER_STATUS.COMPLETED;
+      });
+    }
+
+    alert(`🎉 成功完成客戶【${customerName}】共 ${result.updatedCount || orderIds.length} 筆訂單核銷收款！`);
+    renderAllOrdersPage();
+  } catch (err) {
+    console.error('[BATCH COMPLETE ORDERS]', err);
+    alert('整批核銷失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * 單筆訂單現場取貨收款完成
+ */
+async function completeSingleOrderInAll(orderId, customerName) {
+  const ok = confirm(`確認已完成【${customerName}】的此筆現場取貨收款？`);
+  if (!ok) return;
+
+  setLoading('正在更新訂單狀態...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'updateOrderStatus',
+      idToken: idToken,
+      orderId: orderId,
+      status: ORDER_STATUS.COMPLETED
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    if (window.allOrdersCache) {
+      const target = window.allOrdersCache.find(o => o.orderId === orderId);
+      if (target) target.status = ORDER_STATUS.COMPLETED;
+    }
+
+    renderAllOrdersPage();
+  } catch (err) {
+    console.error('[SINGLE COMPLETE ORDER]', err);
+    alert('核銷失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * 匯出所有訂單為 CSV (含 BOM 中文不亂碼)
+ */
+function exportAllOrdersCSV() {
+  const orders = window.allOrdersCache || [];
+  if (orders.length === 0) {
+    alert('目前無訂單可匯出');
+    return;
+  }
+
+  const headers = ['訂單編號', '下單時間', '顧客姓名', 'LINE_ID', '商品編號', '商品名稱', '規格', '單價', '數量', '小計', '訂單狀態', '顧客備註'];
+  const rows = orders.map(o => {
+    const optStr = formatOrderOptionsText(o.options);
+    const total = o.totalPrice || (o.unitPrice * o.quantity) || 0;
+    return [
+      `"${o.orderId || ''}"`,
+      `"${formatDateTime(o.createdAt)}"`,
+      `"${(o.displayName || '').replace(/"/g, '""')}"`,
+      `"${o.lineUserId || ''}"`,
+      `"${o.productId || ''}"`,
+      `"${(o.productName || '').replace(/"/g, '""')}"`,
+      `"${optStr.replace(/"/g, '""')}"`,
+      o.unitPrice || 0,
+      o.quantity || 1,
+      total,
+      `"${getOrderStatusLabel(o.status)}"`,
+      `"${(o.notes || '').replace(/"/g, '""')}"`
+    ].join(',');
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `天增團購_所有訂單名冊_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* =================================================
+ * 系統管理與店員權限名單 (showSystemPage & renderSystemPage)
+ * ================================================= */
+async function showSystemPage() {
+  setLoading('正在載入系統管理員名單...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'getAdmins',
+      idToken: idToken
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    window.systemAdminsCache = result.admins || [];
+    window.systemUserRole = result.currentUserRole || 'ADMIN';
+    window.systemCurrentUserId = result.currentUserId || '';
+
+    renderSystemPage();
+  } catch (error) {
+    console.error('[SYSTEM PAGE]', error);
+    alert('載入系統管理失敗：\n' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderSystemPage() {
+  hideLoading();
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  const admins = window.systemAdminsCache || [];
+  const isOwner = window.systemUserRole === 'OWNER';
+  const myUserId = window.systemCurrentUserId || '';
+
+  let html = `
+    <div class="container">
+      ${renderUserCard()}
+
+      <button class="back-button" onclick="renderAdminHome()">
+        ← 返回管理首頁
+      </button>
+
+      <div class="header">
+        <h1 class="header-title">系統管理與店員權限</h1>
+        <div class="header-subtitle">門市管理人員名單與權限設定</div>
+      </div>
+  `;
+
+  // 若為 OWNER，顯示新增管理員表單
+  if (isOwner) {
+    html += `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:12px;">➕ 新增或修改管理人員</div>
+        <div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:12px;">
+          💡 提示：店員的 <code>LINE User ID</code> 可請店員在天增團購「我的訂單」中查看，或由後端日誌查詢（開頭為 U 字元之 33 碼字串）。
+        </div>
+        <form onsubmit="handleSaveAdminSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="newAdminUserId">LINE User ID <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="newAdminUserId" class="form-input" placeholder="例如：U1234567890abcdef..." required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newAdminName">人員姓名 / 稱謂 <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="newAdminName" class="form-input" placeholder="例如：店長小王、櫃台小美" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newAdminRole">權限身分</label>
+            <select id="newAdminRole" class="form-select">
+              <option value="ADMIN">🛡️ 門市管理員 (ADMIN - 可開團、叫貨、核銷)</option>
+              <option value="VIEWER">👁️ 檢視人員 (VIEWER - 僅查看訂單名冊)</option>
+              <option value="OWNER">👑 共同系統擁有者 (OWNER - 完整權限)</option>
+            </select>
+          </div>
+          <button type="submit" class="button button-primary" style="width:100%;font-weight:700;">
+            💾 儲存並授與權限
+          </button>
+        </form>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:12px;margin-bottom:16px;">
+        ℹ️ 您目前的身分為 <strong>${escapeHtml(window.systemUserRole)}</strong>。只有系統擁有者 (OWNER) 具備新增或異動管理員之權限。
+      </div>
+    `;
+  }
+
+  // 管理員名單卡片
+  html += `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <span>👥 現有管理人員名單 (${admins.length})</span>
+        <button class="button button-secondary button-small" style="font-size:12px;padding:4px 8px;" onclick="showSystemPage()">🔄 重新整理</button>
+      </div>
+  `;
+
+  if (admins.length === 0) {
+    html += `<div style="color:#9ca3af;text-align:center;padding:20px;">尚無設定資料</div>`;
+  } else {
+    admins.forEach(admin => {
+      const isActive = admin.status === 'ACTIVE';
+      const isSelf = admin.lineUserId === myUserId;
+      let roleBadge = '';
+      if (admin.role === 'OWNER') {
+        roleBadge = '<span class="status-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">👑 系統擁有者 (OWNER)</span>';
+      } else if (admin.role === 'ADMIN') {
+        roleBadge = '<span class="status-badge" style="background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;">🛡️ 管理員 (ADMIN)</span>';
+      } else {
+        roleBadge = '<span class="status-badge" style="background:#f3f4f6;color:#374151;">👁️ 檢視者 (VIEWER)</span>';
+      }
+
+      html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#111;display:flex;align-items:center;gap:6px;">
+              ${escapeHtml(admin.displayName || '未命名人員')}
+              ${roleBadge}
+              ${isSelf ? '<span style="font-size:11px;color:#059669;font-weight:600;">(您自己)</span>' : ''}
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px;">
+              ID：<code>${escapeHtml(admin.lineUserId)}</code>
+            </div>
+          </div>
+          <div>
+            ${
+              isOwner && !isSelf
+                ? isActive
+                  ? `<button class="button button-secondary button-small" style="color:#ef4444;border-color:#fecaca;" onclick="handleDeactivateAdmin('${escapeJs(admin.lineUserId)}', '${escapeJs(admin.displayName)}')">⛔ 停用</button>`
+                  : `<button class="button button-secondary button-small" style="color:#10b981;border-color:#a7f3d0;" onclick="handleReactivateAdmin('${escapeJs(admin.lineUserId)}', '${escapeJs(admin.displayName)}', '${escapeJs(admin.role)}')">🔄 啟用</button>`
+                : `<span style="font-size:12px;color:${isActive ? '#10b981' : '#9ca3af'};font-weight:600;">${isActive ? '🟢 啟用中' : '🔴 已停用'}</span>`
+            }
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  html += `
       </div>
     </div>
   `;
+
+  app.innerHTML = html;
+}
+
+async function handleSaveAdminSubmit(event) {
+  event.preventDefault();
+  const userId = document.getElementById('newAdminUserId').value.trim();
+  const name = document.getElementById('newAdminName').value.trim();
+  const role = document.getElementById('newAdminRole').value;
+
+  if (!userId || !name) {
+    alert('請填寫完整 LINE User ID 與姓名');
+    return;
+  }
+
+  setLoading('正在儲存管理員設定...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'saveAdmin',
+      idToken: idToken,
+      targetUserId: userId,
+      name: name,
+      role: role,
+      status: 'ACTIVE'
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('🎉 管理員設定已成功儲存！');
+    showSystemPage();
+  } catch (err) {
+    console.error('[SAVE ADMIN]', err);
+    alert('儲存失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
+}
+
+async function handleDeactivateAdmin(userId, name) {
+  const ok = confirm(`確認要停用【${name}】的管理員權限嗎？`);
+  if (!ok) return;
+
+  setLoading('正在停用權限...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'deleteAdmin',
+      idToken: idToken,
+      targetUserId: userId
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('已成功停用該管理員權限！');
+    showSystemPage();
+  } catch (err) {
+    console.error('[DEACTIVATE ADMIN]', err);
+    alert('停用失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
+}
+
+async function handleReactivateAdmin(userId, name, role) {
+  setLoading('正在重新啟用權限...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'saveAdmin',
+      idToken: idToken,
+      targetUserId: userId,
+      name: name,
+      role: role,
+      status: 'ACTIVE'
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('已重新啟用管理員權限！');
+    showSystemPage();
+  } catch (err) {
+    console.error('[REACTIVATE ADMIN]', err);
+    alert('啟用失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
 }
 
 /* =================================================
@@ -1508,7 +2470,7 @@ function renderEditProductPage(product) {
         </div>
 
         <div class="form-group">
-          <label class="field-label">截止時間 *</label>
+          <label class="field-label">截止時間（選填，留空代表常態團購、無截止時間）</label>
           <input
             id="editProductEndAt"
             class="form-input"

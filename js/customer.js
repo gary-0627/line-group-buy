@@ -106,7 +106,12 @@ function renderProductPage(product) {
                   <span class="product-info-value">${formatDateTime(product.endAt)}</span>
                 </div>
               `
-              : ''
+              : `
+                <div class="product-info-row">
+                  <span class="product-info-label">團購型態</span>
+                  <span class="product-info-value" style="color:#06c755;font-weight:600;">常態團購（長期開放／售完為止）</span>
+                </div>
+              `
           }
 
           <div class="product-info-row">
@@ -218,6 +223,19 @@ function renderOrderForm(product) {
         <strong id="orderTotal" class="total-price">
           NT$ ${formatPrice(product.price)}
         </strong>
+      </div>
+
+      <!-- 訂單備註 -->
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label" style="font-size:13px;color:#64748b;">📝 備註（選填，如取貨時間偏好等）</label>
+        <textarea
+          id="orderNotes"
+          class="form-input"
+          placeholder="例如：週五再來拿、幫我留到月底..."
+          maxlength="200"
+          rows="2"
+          style="resize:vertical;font-size:14px;"
+        ></textarea>
       </div>
 
       <button
@@ -519,13 +537,16 @@ async function submitOrder() {
     log('[ORDER] requestId:', requestId);
     log('[ORDER] selectedOptions:', selectedOptions);
 
+    const orderNotes = (document.getElementById('orderNotes') || {}).value || '';
+
     const result = await apiRequest({
       action: 'createOrder',
       idToken: idToken,
       productId: currentProduct.productId,
       quantity: orderQuantity,
       options: selectedOptions,
-      requestId: requestId
+      requestId: requestId,
+      notes: orderNotes.trim().substring(0, 200)
     });
 
     log('[ORDER] GAS 回應:', result);
@@ -588,6 +609,18 @@ function renderOrderSuccess(order) {
                     <span class="product-info-label">選擇規格</span>
                     <span class="product-info-value" style="color:#06c755;font-weight:600;">
                       ${order.options.map(o => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ')}
+                    </span>
+                  </div>
+                `
+                : ''
+            }
+            ${
+              order.notes
+                ? `
+                  <div class="product-info-row">
+                    <span class="product-info-label">備註內容</span>
+                    <span class="product-info-value" style="color:#6b7280;">
+                      ${escapeHtml(order.notes)}
                     </span>
                   </div>
                 `
@@ -721,6 +754,16 @@ function renderMyOrders(orders) {
             <span class="product-info-label">登記時間</span>
             <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
           </div>
+          ${
+            order.notes
+              ? `
+                <div class="product-info-row">
+                  <span class="product-info-label">我的備註</span>
+                  <span class="product-info-value" style="color:#64748b;font-style:italic;">${escapeHtml(order.notes)}</span>
+                </div>
+              `
+              : ''
+          }
 
           <!-- 顧客自主取消按鈕（僅限開團中且待處理之訂單） -->
           ${
@@ -747,8 +790,8 @@ function renderMyOrders(orders) {
     <div class="container">
       ${renderCustomerUserCard()}
 
-      <button class="back-button" onclick="location.reload()">
-        ← 返回商品頁
+      <button class="back-button" onclick="window.currentProduct ? renderProduct(window.currentProduct) : renderStoreLobbyPage()">
+        ← 返回門市大廳 / 商品
       </button>
 
       <div class="header">
@@ -800,29 +843,177 @@ async function cancelCustomerOrder(orderId) {
   }
 }
 
-function showNonAdminPage() {
-  hideLoading();
+/* =================================================
+ * 顧客端門市開團大廳 (renderStoreLobbyPage & showNonAdminPage)
+ * ================================================= */
+async function renderStoreLobbyPage() {
+  setLoading('正在載入門市熱門團購...');
   const app = document.getElementById('app');
+  if (!app) return;
   app.style.display = 'block';
 
-  app.innerHTML = `
+  try {
+    const result = await apiRequest({
+      action: 'getPublicActiveProducts'
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    window.storeLobbyProductsCache = result.products || [];
+    renderStoreLobbyUI();
+  } catch (error) {
+    console.error('[STORE LOBBY]', error);
+    // 降級呈現空清單
+    renderStoreLobbyUI([]);
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderStoreLobbyUI(overrideProducts) {
+  hideLoading();
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  const products = overrideProducts !== undefined ? overrideProducts : (window.storeLobbyProductsCache || []);
+  const activeTab = window.storeLobbyFilter || 'ALL';
+
+  const openProducts = products.filter(p => p.status === 'OPEN');
+  const arrivedProducts = products.filter(p => p.status === 'ARRIVED');
+
+  const filtered = products.filter(p => {
+    if (activeTab === 'OPEN') return p.status === 'OPEN';
+    if (activeTab === 'ARRIVED') return p.status === 'ARRIVED';
+    return true;
+  });
+
+  let html = `
     <div class="container">
       ${renderCustomerUserCard()}
 
-      <div class="card">
-        <div style="text-align:center;padding:20px 0;">
-          <div style="font-size:42px;margin-bottom:12px;">👤</div>
-          <div style="font-size:20px;font-weight:700;margin-bottom:8px;">
-            一般使用者
+      <!-- 門市形象橫幅 -->
+      <div class="card" style="background:linear-gradient(135deg, #059669 0%, #047857 100%);color:#fff;border-radius:16px;padding:22px 18px;margin-bottom:16px;box-shadow:0 6px 16px rgba(5,150,105,0.25);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:13px;letter-spacing:1.5px;opacity:0.9;font-weight:600;text-transform:uppercase;">TIAN-ZENG GROUP BUY</div>
+            <div style="font-size:24px;font-weight:800;margin-top:2px;">天增團購 · 實體自取門市</div>
+            <div style="font-size:13px;opacity:0.95;margin-top:6px;">
+              嚴選優質團購 · 到店現場核銷自取 · 免運費現金結帳
+            </div>
           </div>
-          <div style="color:#777;line-height:1.6;margin-bottom:20px;">
-            你目前沒有管理員權限。
+          <div>
+            <button
+              class="button"
+              style="background:#fff;color:#047857;font-weight:700;border:none;padding:10px 16px;border-radius:10px;box-shadow:0 3px 8px rgba(0,0,0,0.15);"
+              onclick="showMyOrdersPage()"
+            >
+              📋 查看我的自取訂單
+            </button>
           </div>
-          <button class="button button-primary" onclick="showMyOrdersPage()">
-            查看我的訂單
-          </button>
         </div>
       </div>
-    </div>
+
+      <!-- 分類標籤 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+        <button
+          class="button button-small ${activeTab === 'ALL' ? 'button-primary' : 'button-secondary'}"
+          onclick="setStoreLobbyFilter('ALL')"
+        >
+          全部團購 (${products.length})
+        </button>
+        <button
+          class="button button-small ${activeTab === 'OPEN' ? 'button-primary' : 'button-secondary'}"
+          style="${activeTab === 'OPEN' ? 'background:#059669;border-color:#059669;' : ''}"
+          onclick="setStoreLobbyFilter('OPEN')"
+        >
+          🔥 登記開團中 (${openProducts.length})
+        </button>
+        <button
+          class="button button-small ${activeTab === 'ARRIVED' ? 'button-primary' : 'button-secondary'}"
+          style="${activeTab === 'ARRIVED' ? 'background:#2563eb;border-color:#2563eb;' : ''}"
+          onclick="setStoreLobbyFilter('ARRIVED')"
+        >
+          🏪 到店取貨中 (${arrivedProducts.length})
+        </button>
+      </div>
   `;
+
+  if (filtered.length === 0) {
+    html += `
+      <div class="card" style="text-align:center;padding:40px 16px;color:#6b7280;">
+        <div style="font-size:42px;margin-bottom:10px;">📦</div>
+        <div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:6px;">目前無進行中之開團商品</div>
+        <div style="font-size:14px;line-height:1.6;margin-bottom:20px;">
+          最新開團資訊將於 LINE 群組即時公告，歡迎隨時關注！
+        </div>
+        <button class="button button-primary" style="margin:0 auto;max-width:200px;" onclick="showMyOrdersPage()">
+          📋 查看我的歷史訂單
+        </button>
+      </div>
+    `;
+  } else {
+    filtered.forEach(p => {
+      const isOpen = p.status === 'OPEN';
+      const isArrived = p.status === 'ARRIVED';
+
+      let endAtDisplay = '✨ 常態開團（售完為止）';
+      if (p.endAt) {
+        endAtDisplay = `⏳ 結單時間：${formatDateTime(p.endAt)}`;
+      }
+
+      html += `
+        <div class="card" style="padding:16px;margin-bottom:14px;border-left:4px solid ${isOpen ? '#059669' : '#2563eb'};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <div style="font-size:17px;font-weight:800;color:#0f172a;line-height:1.4;">
+              ${escapeHtml(p.productName)}
+            </div>
+            <div>
+              ${
+                isOpen
+                  ? '<span class="status-badge" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">🔥 登記中</span>'
+                  : '<span class="status-badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">🏪 到店取貨中</span>'
+              }
+            </div>
+          </div>
+
+          <div style="font-size:13px;color:#64748b;margin-bottom:12px;">
+            ${endAtDisplay}
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #f1f5f9;">
+            <div>
+              <span style="font-size:12px;color:#64748b;">團購優惠價</span>
+              <div style="font-size:20px;font-weight:800;color:#e11d48;">
+                NT$ ${formatPrice(p.price)}
+              </div>
+            </div>
+            <div>
+              <button
+                class="button button-primary"
+                style="${isOpen ? 'background:#059669;border-color:#059669;' : 'background:#2563eb;border-color:#2563eb;'}padding:8px 18px;font-weight:700;font-size:14px;"
+                onclick="loadProduct('${escapeJs(p.productId)}')"
+              >
+                ${isOpen ? '🛒 我要登記訂購' : '🔍 查看商品與取貨'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  html += `</div>`;
+  app.innerHTML = html;
+}
+
+function setStoreLobbyFilter(filter) {
+  window.storeLobbyFilter = filter;
+  renderStoreLobbyUI();
+}
+
+function showNonAdminPage() {
+  // 自動導向門市開團大廳
+  renderStoreLobbyPage();
 }

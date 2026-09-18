@@ -7,7 +7,7 @@
  * ================================================= */
 let loadingSafetyTimer = null;
 
-function setLoading(message = '載入中...') {
+function setLoading(message = '載入中...', timeoutMs = 15000) {
   const loading = document.getElementById('loading');
   const loadingText = document.getElementById('loadingText');
 
@@ -18,11 +18,11 @@ function setLoading(message = '載入中...') {
     loading.style.display = 'flex';
   }
 
-  // 🛡️ 雙重保險：任何 Loading 最多顯示 8 秒，超時自動關閉，絕對不卡畫面！
+  // 🛡️ 雙重保險：Loading 超時自動關閉，確保不卡死畫面
   if (loadingSafetyTimer) clearTimeout(loadingSafetyTimer);
   loadingSafetyTimer = setTimeout(() => {
     hideLoading();
-  }, 8000);
+  }, timeoutMs);
 }
 
 function hideLoading() {
