@@ -2129,6 +2129,7 @@ async function showSystemPage() {
     }
 
     window.systemAdminsCache = result.admins || [];
+    window.systemUsersCache = result.users || [];
     window.systemUserRole = result.currentUserRole || 'ADMIN';
     window.systemCurrentUserId = result.currentUserId || '';
 
@@ -2147,6 +2148,7 @@ function renderSystemPage() {
   if (!app) return;
 
   const admins = window.systemAdminsCache || [];
+  const users = window.systemUsersCache || [];
   const isOwner = window.systemUserRole === 'OWNER';
   const myUserId = window.systemCurrentUserId || '';
 
@@ -2164,31 +2166,51 @@ function renderSystemPage() {
       </div>
   `;
 
-  // 若為 OWNER，顯示新增管理員表單
+  // 若為 OWNER，顯示新增管理員表單（支援直接從現有使用者下拉挑選）
   if (isOwner) {
     html += `
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title" style="margin-bottom:12px;">➕ 新增或修改管理人員</div>
-        <div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:12px;">
-          💡 提示：店員的 <code>LINE User ID</code> 可請店員在天增團購「我的訂單」中查看，或由後端日誌查詢（開頭為 U 字元之 33 碼字串）。
+        <div class="card-title" style="margin-bottom:12px;">➕ 新增或設定管理人員</div>
+        <div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:14px;">
+          💡 請直接從下方選單挑選曾在天增系統開啟過頁面的使用者或店員，點選後會自動帶入名稱與 ID，免去手動複製貼上！
         </div>
         <form onsubmit="handleSaveAdminSubmit(event)">
+          <!-- 核心：直接從目前使用者中下拉挑選 -->
           <div class="form-group">
+            <label class="form-label" for="selectExistingUser">👤 選擇現有使用者 / 店員 <span style="color:#ef4444;">*</span></label>
+            <select id="selectExistingUser" class="form-select" onchange="handleUserSelectionChange(this.value)">
+              <option value="">-- 請點此挑選店員或顧客 --</option>
+              ${
+                users.map(u => {
+                  const existingAdmin = admins.find(a => a.lineUserId === u.lineUserId && a.status === 'ACTIVE');
+                  const roleTag = existingAdmin ? ` (現為 ${existingAdmin.role})` : '';
+                  return `<option value="${escapeHtml(u.lineUserId)}" data-name="${escapeHtml(u.displayName)}">${escapeHtml(u.displayName)}${roleTag} (ID: ${escapeHtml(u.lineUserId.substring(0, 8))}...)</option>`;
+                }).join('')
+              }
+              <option value="__MANUAL__">✍️ 手動輸入其他 LINE User ID...</option>
+            </select>
+          </div>
+
+          <!-- LINE User ID (選擇後自動帶入並保持唯讀保護) -->
+          <div id="userIdFormGroup" class="form-group" style="display:none;">
             <label class="form-label" for="newAdminUserId">LINE User ID <span style="color:#ef4444;">*</span></label>
             <input type="text" id="newAdminUserId" class="form-input" placeholder="例如：U1234567890abcdef..." required>
           </div>
+
           <div class="form-group">
-            <label class="form-label" for="newAdminName">人員姓名 / 稱謂 <span style="color:#ef4444;">*</span></label>
+            <label class="form-label" for="newAdminName">管理稱謂 / 顯示姓名 <span style="color:#ef4444;">*</span></label>
             <input type="text" id="newAdminName" class="form-input" placeholder="例如：店長小王、櫃台小美" required>
           </div>
+
           <div class="form-group">
-            <label class="form-label" for="newAdminRole">權限身分</label>
+            <label class="form-label" for="newAdminRole">設定權限身分</label>
             <select id="newAdminRole" class="form-select">
               <option value="ADMIN">🛡️ 門市管理員 (ADMIN - 可開團、叫貨、核銷)</option>
               <option value="VIEWER">👁️ 檢視人員 (VIEWER - 僅查看訂單名冊)</option>
               <option value="OWNER">👑 共同系統擁有者 (OWNER - 完整權限)</option>
             </select>
           </div>
+
           <button type="submit" class="button button-primary" style="width:100%;font-weight:700;">
             💾 儲存並授與權限
           </button>
@@ -2261,14 +2283,54 @@ function renderSystemPage() {
   app.innerHTML = html;
 }
 
+function handleUserSelectionChange(val) {
+  const userIdGroup = document.getElementById('userIdFormGroup');
+  const userIdInput = document.getElementById('newAdminUserId');
+  const nameInput = document.getElementById('newAdminName');
+  const select = document.getElementById('selectExistingUser');
+  const selectedOption = select ? select.options[select.selectedIndex] : null;
+
+  if (!val) {
+    if (userIdGroup) userIdGroup.style.display = 'none';
+    if (userIdInput) userIdInput.value = '';
+    if (nameInput) nameInput.value = '';
+    return;
+  }
+
+  if (val === '__MANUAL__') {
+    if (userIdGroup) userIdGroup.style.display = 'block';
+    if (userIdInput) {
+      userIdInput.value = '';
+      userIdInput.readOnly = false;
+      userIdInput.focus();
+    }
+    if (nameInput) nameInput.value = '';
+  } else {
+    const displayName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+    if (userIdGroup) userIdGroup.style.display = 'block';
+    if (userIdInput) {
+      userIdInput.value = val;
+      userIdInput.readOnly = true;
+    }
+    if (nameInput) {
+      nameInput.value = displayName || '';
+    }
+  }
+}
+
 async function handleSaveAdminSubmit(event) {
   event.preventDefault();
   const userId = document.getElementById('newAdminUserId').value.trim();
   const name = document.getElementById('newAdminName').value.trim();
   const role = document.getElementById('newAdminRole').value;
 
-  if (!userId || !name) {
-    alert('請填寫完整 LINE User ID 與姓名');
+  if (!userId) {
+    alert('請先從「選擇現有使用者 / 店員」下拉選單中挑選人員！');
+    return;
+  }
+
+  if (!name) {
+    alert('請填寫管理稱謂或顯示姓名');
     return;
   }
 
