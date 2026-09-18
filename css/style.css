@@ -696,3 +696,104 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* =========================
+       實體門市管線生命週期樣式
+    ========================= */
+    .pipeline-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .pipeline-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pipeline-tab {
+      flex-shrink: 0;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4b5563;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .pipeline-tab.active {
+      background: #06c755;
+      color: #fff;
+      border-color: #06c755;
+      box-shadow: 0 2px 6px rgba(6, 199, 85, 0.25);
+    }
+
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-warning { background: #fef3c7; color: #b45309; }
+    .badge-info    { background: #e0f2fe; color: #0369a1; }
+    .badge-primary { background: #dbeafe; color: #1d4ed8; }
+    .badge-secondary { background: #f3f4f6; color: #4b5563; }
+    .badge-dark    { background: #374151; color: #f9fafb; }
+
+    .counter-stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .counter-stat-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .counter-stat-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .counter-stat-num {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .quick-action-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .quick-action-btn:active {
+      transform: scale(0.96);
+    }
+    .btn-green { background: #06c755; color: #fff; }
+    .btn-blue  { background: #2563eb; color: #fff; }
+    .btn-amber { background: #f59e0b; color: #fff; }
+    .btn-gray  { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
