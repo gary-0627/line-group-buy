@@ -164,7 +164,8 @@ async function generateBatchPickupReminder() {
 
     const result = await apiRequest({
       action: 'getAllOrders',
-      idToken: idToken
+      idToken: idToken,
+      fetchAll: true
     });
 
     if (!result.success) throw new Error(handleApiErrorMessage(result));
@@ -1709,17 +1710,38 @@ function exportOrdersCSV() {
 }
 
 /* =================================================
- * 跨商品所有訂單頁面 (showAllOrdersPage & renderAllOrdersPage)
+ * 跨商品所有訂單頁面 (後端分頁與後端搜尋)
  * ================================================= */
+window.allOrdersCache = [];
+window.allOrdersPage = 1;
+window.allOrdersPageSize = 20;
+window.allOrdersTotal = 0;
+window.allOrdersTotalPages = 1;
+window.allOrdersFilter = 'ALL';
+window.allOrdersSearch = '';
+
 async function showAllOrdersPage() {
-  setLoading('正在載入所有門市訂單...');
+  window.allOrdersPage = 1;
+  window.allOrdersFilter = 'ALL';
+  window.allOrdersSearch = '';
+  await loadAllOrdersPage(1);
+}
+
+async function loadAllOrdersPage(page = 1) {
+  window.allOrdersPage = page;
+  setLoading('正在向後端載入門市訂單...');
+
   try {
     const idToken = liff.getIDToken();
     if (!idToken) throw new Error('無法取得 LINE ID Token');
 
     const result = await apiRequest({
       action: 'getAllOrders',
-      idToken: idToken
+      idToken: idToken,
+      page: window.allOrdersPage,
+      pageSize: window.allOrdersPageSize,
+      status: window.allOrdersFilter,
+      search: window.allOrdersSearch
     });
 
     if (!result.success) {
@@ -1727,8 +1749,9 @@ async function showAllOrdersPage() {
     }
 
     window.allOrdersCache = result.orders || [];
-    window.allOrdersFilter = window.allOrdersFilter || 'ALL';
-    window.allOrdersSearch = window.allOrdersSearch || '';
+    window.allOrdersTotal = result.total || 0;
+    window.allOrdersTotalPages = result.totalPages || 1;
+    window.allOrdersPage = result.page || 1;
 
     renderAllOrdersPage();
   } catch (error) {
@@ -1746,48 +1769,15 @@ function renderAllOrdersPage() {
 
   const orders = window.allOrdersCache || [];
   const activeFilter = window.allOrdersFilter || 'ALL';
-  const query = (window.allOrdersSearch || '').trim().toLowerCase();
+  const query = (window.allOrdersSearch || '').trim();
 
-  // 統計總數
-  const totalCount = orders.length;
-  const pendingOrders = orders.filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED);
-  const completedOrders = orders.filter(o => o.status === ORDER_STATUS.COMPLETED);
-  const cancelledOrders = orders.filter(o => o.status === ORDER_STATUS.CANCELLED);
-
-  // 根據搜尋與篩選條件過濾
-  let filtered = orders.filter(o => {
-    // 狀態篩選
-    if (activeFilter === 'PENDING') {
-      if (o.status === ORDER_STATUS.COMPLETED || o.status === ORDER_STATUS.CANCELLED) return false;
-    } else if (activeFilter === 'COMPLETED') {
-      if (o.status !== ORDER_STATUS.COMPLETED) return false;
-    } else if (activeFilter === 'CANCELLED') {
-      if (o.status !== ORDER_STATUS.CANCELLED) return false;
-    }
-
-    // 關鍵字搜尋（比對顧客姓名、商品名稱、訂單編號、規格）
-    if (query) {
-      const matchName = String(o.displayName || '').toLowerCase().includes(query);
-      const matchProd = String(o.productName || '').toLowerCase().includes(query);
-      const matchId = String(o.orderId || '').toLowerCase().includes(query);
-      let matchOpt = false;
-      if (Array.isArray(o.options)) {
-        matchOpt = o.options.some(opt => String(opt.value || '').toLowerCase().includes(query));
-      } else if (typeof o.options === 'string') {
-        matchOpt = o.options.toLowerCase().includes(query);
-      }
-      return matchName || matchProd || matchId || matchOpt;
-    }
-    return true;
-  });
-
-  // 若搜尋欄有輸入關鍵字，檢查比對出的顧客待取貨總計（跨商品聚合核銷功能）
+  // 若搜尋欄有輸入關鍵字，檢查當前比對出的待取商品（跨商品聚合核銷功能）
   let matchedCustomerPendingOrders = [];
   let matchedCustomerName = '';
   let matchedCustomerTotalAmount = 0;
 
-  if (query) {
-    matchedCustomerPendingOrders = filtered.filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED);
+  if (query && orders.length > 0) {
+    matchedCustomerPendingOrders = orders.filter(o => o.status !== ORDER_STATUS.COMPLETED && o.status !== ORDER_STATUS.CANCELLED);
     if (matchedCustomerPendingOrders.length > 0) {
       matchedCustomerName = matchedCustomerPendingOrders[0].displayName || query;
       matchedCustomerTotalAmount = matchedCustomerPendingOrders.reduce((sum, o) => sum + (o.totalPrice || (o.unitPrice * o.quantity) || 0), 0);
@@ -1807,44 +1797,39 @@ function renderAllOrdersPage() {
         <div class="header-subtitle">跨商品訂單整合與現場快速核銷</div>
       </div>
 
-      <!-- 統計摘要 -->
-      <div class="stat-grid" style="grid-template-columns:repeat(3, 1fr);margin-bottom:16px;">
-        <div class="stat-card" style="text-align:center;padding:12px 6px;">
-          <div class="stat-value" style="font-size:22px;color:#f59e0b;">${pendingOrders.length}</div>
-          <div class="stat-label" style="font-size:12px;">待取貨</div>
-        </div>
-        <div class="stat-card" style="text-align:center;padding:12px 6px;">
-          <div class="stat-value" style="font-size:22px;color:#10b981;">${completedOrders.length}</div>
-          <div class="stat-label" style="font-size:12px;">已取貨</div>
-        </div>
-        <div class="stat-card" style="text-align:center;padding:12px 6px;">
-          <div class="stat-value" style="font-size:22px;color:#6b7280;">${totalCount}</div>
-          <div class="stat-label" style="font-size:12px;">全部筆數</div>
-        </div>
-      </div>
-
       <!-- 現場跨商品快速核銷搜尋框 -->
       <div class="card" style="padding:14px;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
-          <span>🔍 現場櫃台即時搜尋</span>
-          <button class="button button-secondary button-small" style="font-size:12px;padding:4px 8px;" onclick="exportAllOrdersCSV()">📥 匯出 CSV</button>
+          <span>🔍 後端即時搜尋（依顧客/商品/單號）</span>
+          <button class="button button-secondary button-small" style="font-size:12px;padding:4px 8px;" onclick="exportAllOrdersCSV()">📥 匯出完整 CSV</button>
         </div>
-        <input
-          type="text"
-          id="allOrdersSearchInput"
-          class="form-input"
-          placeholder="輸入客人姓名/LINE暱稱、商品名或單號..."
-          value="${escapeHtml(window.allOrdersSearch || '')}"
-          oninput="handleAllOrdersSearchInput(this.value)"
-          style="font-size:15px;"
-        >
+        <div style="display:flex;gap:8px;">
+          <input
+            type="text"
+            id="allOrdersSearchInput"
+            class="form-input"
+            placeholder="輸入客人姓名/LINE暱稱、商品名、單號或備註..."
+            value="${escapeHtml(window.allOrdersSearch || '')}"
+            oninput="handleAllOrdersSearchInput(this.value)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();loadAllOrdersPage(1);}"
+            style="font-size:15px;"
+          >
+          <button
+            type="button"
+            class="button button-primary"
+            style="width:auto;padding:8px 16px;white-space:nowrap;font-weight:700;"
+            onclick="loadAllOrdersPage(1)"
+          >
+            搜尋
+          </button>
+        </div>
 
         <!-- 狀態過濾標籤 -->
         <div style="display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:4px;">
-          <button class="button button-small ${activeFilter === 'ALL' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('ALL')">全部 (${totalCount})</button>
-          <button class="button button-small ${activeFilter === 'PENDING' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'PENDING' ? 'background:#f59e0b;border-color:#f59e0b;' : ''}" onclick="setAllOrdersFilter('PENDING')">🏪 待取貨 (${pendingOrders.length})</button>
-          <button class="button button-small ${activeFilter === 'COMPLETED' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'COMPLETED' ? 'background:#10b981;border-color:#10b981;' : ''}" onclick="setAllOrdersFilter('COMPLETED')">✅ 已取貨 (${completedOrders.length})</button>
-          <button class="button button-small ${activeFilter === 'CANCELLED' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('CANCELLED')">已取消 (${cancelledOrders.length})</button>
+          <button class="button button-small ${activeFilter === 'ALL' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('ALL')">全部</button>
+          <button class="button button-small ${activeFilter === 'PENDING' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'PENDING' ? 'background:#f59e0b;border-color:#f59e0b;' : ''}" onclick="setAllOrdersFilter('PENDING')">🏪 待取貨</button>
+          <button class="button button-small ${activeFilter === 'COMPLETED' ? 'button-primary' : 'button-secondary'}" style="${activeFilter === 'COMPLETED' ? 'background:#10b981;border-color:#10b981;' : ''}" onclick="setAllOrdersFilter('COMPLETED')">✅ 已取貨</button>
+          <button class="button button-small ${activeFilter === 'CANCELLED' ? 'button-primary' : 'button-secondary'}" onclick="setAllOrdersFilter('CANCELLED')">已取消</button>
         </div>
       </div>
 
@@ -1875,22 +1860,24 @@ function renderAllOrdersPage() {
           : ''
       }
 
-      <!-- 訂單清單 -->
+      <!-- 訂單清單標題與分頁摘要 -->
       <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:13px;color:#6b7280;font-weight:600;">顯示 ${filtered.length} 筆訂單</span>
+        <span style="font-size:13px;color:#6b7280;font-weight:600;">
+          第 ${window.allOrdersPage} 頁（共 ${window.allOrdersTotal} 筆訂單）
+        </span>
         ${query ? `<button style="border:none;background:none;color:#ef4444;font-size:12px;cursor:pointer;text-decoration:underline;" onclick="clearAllOrdersSearch()">✕ 清除搜尋</button>` : ''}
       </div>
   `;
 
-  if (filtered.length === 0) {
+  if (orders.length === 0) {
     html += `
       <div class="card" style="text-align:center;padding:32px 16px;color:#9ca3af;">
         <div style="font-size:36px;margin-bottom:8px;">📭</div>
-        <div style="font-size:15px;font-weight:600;">沒有符合條件的訂單</div>
+        <div style="font-size:15px;font-weight:600;">此篩選條件下無訂單資料</div>
       </div>
     `;
   } else {
-    filtered.forEach(order => {
+    orders.forEach(order => {
       const isCompleted = order.status === ORDER_STATUS.COMPLETED;
       const isCancelled = order.status === ORDER_STATUS.CANCELLED;
       const isPending = !isCompleted && !isCancelled;
@@ -1959,6 +1946,31 @@ function renderAllOrdersPage() {
         </div>
       `;
     });
+
+    // 後端分頁導航按鈕
+    html += `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:12px;background:#fff;border-radius:10px;border:1px solid #e2e8f0;flex-wrap:wrap;gap:8px;">
+        <button
+          class="button button-secondary button-small"
+          style="width:auto;padding:6px 14px;"
+          ${window.allOrdersPage <= 1 ? 'disabled' : ''}
+          onclick="loadAllOrdersPage(${window.allOrdersPage - 1})"
+        >
+          ◀ 上一頁
+        </button>
+        <span style="font-size:13px;font-weight:700;color:#475569;">
+          第 ${window.allOrdersPage} / ${window.allOrdersTotalPages} 頁 (共 ${window.allOrdersTotal} 筆)
+        </span>
+        <button
+          class="button button-secondary button-small"
+          style="width:auto;padding:6px 14px;"
+          ${window.allOrdersPage >= window.allOrdersTotalPages ? 'disabled' : ''}
+          onclick="loadAllOrdersPage(${window.allOrdersPage + 1})"
+        >
+          下一頁 ▶
+        </button>
+      </div>
+    `;
   }
 
   html += `</div>`;
@@ -1967,26 +1979,23 @@ function renderAllOrdersPage() {
 
 let allOrdersSearchTimeout = null;
 function handleAllOrdersSearchInput(val) {
-  window.allOrdersSearch = val;
+  window.allOrdersSearch = val.trim();
   if (allOrdersSearchTimeout) clearTimeout(allOrdersSearchTimeout);
   allOrdersSearchTimeout = setTimeout(() => {
-    renderAllOrdersPage();
-    const input = document.getElementById('allOrdersSearchInput');
-    if (input) {
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    }
-  }, 100);
+    loadAllOrdersPage(1);
+  }, 400);
 }
 
 function clearAllOrdersSearch() {
   window.allOrdersSearch = '';
-  renderAllOrdersPage();
+  const input = document.getElementById('allOrdersSearchInput');
+  if (input) input.value = '';
+  loadAllOrdersPage(1);
 }
 
 function setAllOrdersFilter(filter) {
   window.allOrdersFilter = filter;
-  renderAllOrdersPage();
+  loadAllOrdersPage(1);
 }
 
 /**
@@ -2069,14 +2078,29 @@ async function completeSingleOrderInAll(orderId, customerName) {
 }
 
 /**
- * 匯出所有訂單為 CSV (含 BOM 中文不亂碼)
+ * 匯出所有訂單為 CSV (向後端獲取完整名冊，含 BOM 中文不亂碼)
  */
-function exportAllOrdersCSV() {
-  const orders = window.allOrdersCache || [];
-  if (orders.length === 0) {
-    alert('目前無訂單可匯出');
-    return;
-  }
+async function exportAllOrdersCSV() {
+  setLoading('正在向後端下載完整訂單名冊...');
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'getAllOrders',
+      idToken: idToken,
+      fetchAll: true
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    const orders = result.orders || [];
+    if (orders.length === 0) {
+      alert('目前無訂單可匯出');
+      return;
+    }
 
   const headers = ['訂單編號', '下單時間', '顧客姓名', 'LINE_ID', '商品編號', '商品名稱', '規格', '單價', '數量', '小計', '訂單狀態', '顧客備註'];
   const rows = orders.map(o => {
@@ -2108,6 +2132,12 @@ function exportAllOrdersCSV() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('[EXPORT ALL ORDERS CSV]', err);
+    alert('匯出失敗：\n' + handleApiErrorMessage(err));
+  } finally {
+    hideLoading();
+  }
 }
 
 /* =================================================
@@ -2166,40 +2196,68 @@ function renderSystemPage() {
       </div>
   `;
 
-  // 若為 OWNER，顯示新增管理員表單（支援直接從現有使用者下拉挑選）
+  // 若為 OWNER，顯示新增管理員表單（支援 LINE 暱稱即時/點擊搜尋）
   if (isOwner) {
     html += `
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title" style="margin-bottom:12px;">➕ 新增或設定管理人員</div>
-        <div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:14px;">
-          💡 請直接從下方選單挑選曾在天增系統開啟過頁面的使用者或店員，點選後會自動帶入名稱與 ID，免去手動複製貼上！
+        <div class="card-title" style="margin-bottom:10px;">➕ 新增或設定管理人員</div>
+        <div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:12px;">
+          💡 輸入店員的 <strong>LINE 暱稱</strong> 進行搜尋，點選即可快速帶入，人多時也能秒速找到！
         </div>
-        <form onsubmit="handleSaveAdminSubmit(event)">
-          <!-- 核心：直接從目前使用者中下拉挑選 -->
-          <div class="form-group">
-            <label class="form-label" for="selectExistingUser">👤 選擇現有使用者 / 店員 <span style="color:#ef4444;">*</span></label>
-            <select id="selectExistingUser" class="form-select" onchange="handleUserSelectionChange(this.value)">
-              <option value="">-- 請點此挑選店員或顧客 --</option>
-              ${
-                users.map(u => {
-                  const existingAdmin = admins.find(a => a.lineUserId === u.lineUserId && a.status === 'ACTIVE');
-                  const roleTag = existingAdmin ? ` (現為 ${existingAdmin.role})` : '';
-                  return `<option value="${escapeHtml(u.lineUserId)}" data-name="${escapeHtml(u.displayName)}">${escapeHtml(u.displayName)}${roleTag} (ID: ${escapeHtml(u.lineUserId.substring(0, 8))}...)</option>`;
-                }).join('')
-              }
-              <option value="__MANUAL__">✍️ 手動輸入其他 LINE User ID...</option>
-            </select>
-          </div>
 
-          <!-- LINE User ID (選擇後自動帶入並保持唯讀保護) -->
-          <div id="userIdFormGroup" class="form-group" style="display:none;">
-            <label class="form-label" for="newAdminUserId">LINE User ID <span style="color:#ef4444;">*</span></label>
-            <input type="text" id="newAdminUserId" class="form-input" placeholder="例如：U1234567890abcdef..." required>
+        <!-- 🔍 暱稱搜尋輸入框 + 搜尋按鈕 -->
+        <div class="form-group" style="margin-bottom:8px;">
+          <label class="form-label" for="searchUserKeyword">🔍 搜尋店員 LINE 暱稱</label>
+          <div style="display:flex;gap:8px;">
+            <input
+              type="text"
+              id="searchUserKeyword"
+              class="form-input"
+              placeholder="輸入 LINE 暱稱關鍵字（例如：小王、阿傑、Amy）..."
+              oninput="handleUserSearchInput(this.value)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();searchUserForAdmin();}"
+              style="font-size:15px;"
+            >
+            <button
+              type="button"
+              class="button button-primary"
+              style="width:auto;padding:8px 16px;white-space:nowrap;font-weight:700;"
+              onclick="searchUserForAdmin()"
+            >
+              搜尋
+            </button>
           </div>
+        </div>
+
+        <!-- 搜尋結果展示區 -->
+        <div id="userSearchResults" style="margin-bottom:12px;"></div>
+
+        <!-- 已選定店員卡片 -->
+        <div id="selectedUserBanner" style="display:none;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:#047857;font-weight:700;">✅ 已選定人員</div>
+              <div id="selectedUserDisplayName" style="font-size:16px;font-weight:800;color:#065f46;margin-top:2px;"></div>
+              <div id="selectedUserIdPreview" style="font-size:12px;color:#059669;margin-top:2px;word-break:break-all;"></div>
+            </div>
+            <button
+              type="button"
+              class="button button-small"
+              style="background:#fff;border:1px solid #cbd5e1;color:#dc2626;font-size:12px;padding:4px 10px;"
+              onclick="clearSelectedUser()"
+            >
+              重選
+            </button>
+          </div>
+        </div>
+
+        <form onsubmit="handleSaveAdminSubmit(event)">
+          <!-- 隱藏但帶值的 User ID -->
+          <input type="hidden" id="newAdminUserId" value="">
 
           <div class="form-group">
             <label class="form-label" for="newAdminName">管理稱謂 / 顯示姓名 <span style="color:#ef4444;">*</span></label>
-            <input type="text" id="newAdminName" class="form-input" placeholder="例如：店長小王、櫃台小美" required>
+            <input type="text" id="newAdminName" class="form-input" placeholder="例如：店長小王、櫃台小美（選定後自動填入）" required>
           </div>
 
           <div class="form-group">
@@ -2215,6 +2273,28 @@ function renderSystemPage() {
             💾 儲存並授與權限
           </button>
         </form>
+
+        <!-- 備用：手動輸入 ID -->
+        <div style="margin-top:12px;text-align:right;">
+          <button
+            type="button"
+            style="border:none;background:none;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline;"
+            onclick="toggleManualUserIdInput()"
+          >
+            找不到人？切換手動輸入 LINE User ID ✍️
+          </button>
+        </div>
+        <div id="manualUserIdBox" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;border:1px dashed #cbd5e1;">
+          <label class="form-label" style="font-size:12px;">手動輸入 LINE User ID</label>
+          <input
+            type="text"
+            id="manualUserIdInput"
+            class="form-input"
+            placeholder="例如：U1234567890abcdef..."
+            oninput="handleManualUserIdInput(this.value)"
+            style="font-size:13px;"
+          >
+        </div>
       </div>
     `;
   } else {
@@ -2283,39 +2363,146 @@ function renderSystemPage() {
   app.innerHTML = html;
 }
 
-function handleUserSelectionChange(val) {
-  const userIdGroup = document.getElementById('userIdFormGroup');
-  const userIdInput = document.getElementById('newAdminUserId');
-  const nameInput = document.getElementById('newAdminName');
-  const select = document.getElementById('selectExistingUser');
-  const selectedOption = select ? select.options[select.selectedIndex] : null;
+let userSearchTimer = null;
+function handleUserSearchInput(val) {
+  if (userSearchTimer) clearTimeout(userSearchTimer);
+  userSearchTimer = setTimeout(() => {
+    searchUserForAdmin();
+  }, 200);
+}
 
-  if (!val) {
-    if (userIdGroup) userIdGroup.style.display = 'none';
-    if (userIdInput) userIdInput.value = '';
-    if (nameInput) nameInput.value = '';
+async function searchUserForAdmin() {
+  const keyword = (document.getElementById('searchUserKeyword') || {}).value?.trim() || '';
+  const container = document.getElementById('userSearchResults');
+  if (!container) return;
+
+  if (!keyword) {
+    container.innerHTML = '<div style="color:#64748b;font-size:13px;padding:8px 0;">請輸入 LINE 暱稱關鍵字後點擊搜尋</div>';
     return;
   }
 
-  if (val === '__MANUAL__') {
-    if (userIdGroup) userIdGroup.style.display = 'block';
-    if (userIdInput) {
-      userIdInput.value = '';
-      userIdInput.readOnly = false;
-      userIdInput.focus();
+  container.innerHTML = '<div style="color:#2563eb;font-size:13px;padding:8px 0;">🔍 正在透過後端搜尋中...</div>';
+
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error('無法取得 LINE ID Token');
+
+    const result = await apiRequest({
+      action: 'searchUsers',
+      idToken: idToken,
+      keyword: keyword,
+      limit: 20
+    });
+
+    if (!result.success) throw new Error(handleApiErrorMessage(result));
+
+    const matches = result.users || [];
+    const admins = window.systemAdminsCache || [];
+
+    if (matches.length === 0) {
+      container.innerHTML = `
+        <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:13px;">
+          🔍 找不到暱稱包含「<strong>${escapeHtml(keyword)}</strong>」的使用者。<br>
+          <span style="font-size:12px;color:#7f1d1d;">提示：請店員先用 LINE 開啟一次本團購系統首頁，系統便會自動登記其暱稱！</span>
+        </div>
+      `;
+      return;
     }
-    if (nameInput) nameInput.value = '';
-  } else {
-    const displayName = selectedOption ? selectedOption.getAttribute('data-name') : '';
-    if (userIdGroup) userIdGroup.style.display = 'block';
-    if (userIdInput) {
-      userIdInput.value = val;
-      userIdInput.readOnly = true;
-    }
-    if (nameInput) {
-      nameInput.value = displayName || '';
-    }
+
+    let html = `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;max-height:220px;overflow-y:auto;">
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">
+          找到 ${matches.length} 位符合的使用者（點選即可指派）：
+        </div>
+    `;
+
+    matches.forEach(u => {
+      const existingAdmin = admins.find(a => a.lineUserId === u.lineUserId && a.status === 'ACTIVE');
+      const roleTag = existingAdmin ? `<span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;font-weight:600;">現為 ${existingAdmin.role}</span>` : '';
+
+      html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#fff;border-radius:6px;border:1px solid #e2e8f0;margin-bottom:6px;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#0f172a;display:flex;align-items:center;gap:6px;">
+              👤 ${escapeHtml(u.displayName)}
+              ${roleTag}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
+              ID：<code>${escapeHtml(u.lineUserId.substring(0, 10))}...</code>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="button button-primary button-small"
+            style="padding:5px 12px;font-size:12px;font-weight:700;"
+            onclick="selectUserForAdmin('${escapeJs(u.lineUserId)}', '${escapeJs(u.displayName)}')"
+          >
+            👉 選取
+          </button>
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+  } catch (err) {
+    console.error('[SEARCH USERS]', err);
+    container.innerHTML = `<div style="color:#ef4444;font-size:13px;padding:8px 0;">搜尋失敗：${escapeHtml(handleApiErrorMessage(err))}</div>`;
   }
+}
+
+function selectUserForAdmin(userId, displayName) {
+  const userIdInput = document.getElementById('newAdminUserId');
+  const nameInput = document.getElementById('newAdminName');
+  const banner = document.getElementById('selectedUserBanner');
+  const bannerName = document.getElementById('selectedUserDisplayName');
+  const bannerId = document.getElementById('selectedUserIdPreview');
+  const searchResults = document.getElementById('userSearchResults');
+
+  if (userIdInput) userIdInput.value = userId;
+  if (nameInput) nameInput.value = displayName;
+
+  if (banner && bannerName && bannerId) {
+    bannerName.textContent = displayName;
+    bannerId.textContent = 'LINE ID：' + userId;
+    banner.style.display = 'block';
+  }
+
+  // 隱藏搜尋結果，保持畫面乾淨
+  if (searchResults) searchResults.innerHTML = '';
+}
+
+function clearSelectedUser() {
+  const userIdInput = document.getElementById('newAdminUserId');
+  const nameInput = document.getElementById('newAdminName');
+  const banner = document.getElementById('selectedUserBanner');
+
+  if (userIdInput) userIdInput.value = '';
+  if (nameInput) nameInput.value = '';
+  if (banner) banner.style.display = 'none';
+
+  const searchInput = document.getElementById('searchUserKeyword');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.focus();
+  }
+}
+
+function toggleManualUserIdInput() {
+  const box = document.getElementById('manualUserIdBox');
+  if (!box) return;
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    const input = document.getElementById('manualUserIdInput');
+    if (input) input.focus();
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function handleManualUserIdInput(val) {
+  const userIdInput = document.getElementById('newAdminUserId');
+  if (userIdInput) userIdInput.value = val.trim();
 }
 
 async function handleSaveAdminSubmit(event) {
@@ -2325,7 +2512,9 @@ async function handleSaveAdminSubmit(event) {
   const role = document.getElementById('newAdminRole').value;
 
   if (!userId) {
-    alert('請先從「選擇現有使用者 / 店員」下拉選單中挑選人員！');
+    alert('請先在上方輸入店員的 LINE 暱稱搜尋並點選「👉 選取」！');
+    const searchInput = document.getElementById('searchUserKeyword');
+    if (searchInput) searchInput.focus();
     return;
   }
 

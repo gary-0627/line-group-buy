@@ -9,7 +9,9 @@ async function apiRequest(data, timeoutMs = 35000) {
     data.action === 'getMyOrders' ||
     data.action === 'getAllOrders' ||
     data.action === 'getPublicActiveProducts' ||
-    data.action === 'getAdmins'
+    data.action === 'getAdmins' ||
+    data.action === 'searchUsers' ||
+    data.action === 'getDashboardStats'
   );
 
   try {
