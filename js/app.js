@@ -3,8 +3,10 @@
  *************************************************/
 
 /* =================================================
- * Loading 遮罩控制
+ * Loading 遮罩控制（含逾時自動關閉安全保險）
  * ================================================= */
+let loadingSafetyTimer = null;
+
 function setLoading(message = '載入中...') {
   const loading = document.getElementById('loading');
   const loadingText = document.getElementById('loadingText');
@@ -15,9 +17,19 @@ function setLoading(message = '載入中...') {
   if (loading) {
     loading.style.display = 'flex';
   }
+
+  // 🛡️ 雙重保險：任何 Loading 最多顯示 8 秒，超時自動關閉，絕對不卡畫面！
+  if (loadingSafetyTimer) clearTimeout(loadingSafetyTimer);
+  loadingSafetyTimer = setTimeout(() => {
+    hideLoading();
+  }, 8000);
 }
 
 function hideLoading() {
+  if (loadingSafetyTimer) {
+    clearTimeout(loadingSafetyTimer);
+    loadingSafetyTimer = null;
+  }
   const loading = document.getElementById('loading');
   if (loading) {
     loading.style.display = 'none';
@@ -263,6 +275,7 @@ async function initLIFF() {
       log('[ROUTER] 商品頁:', productId);
       // 🚀 關鍵優化：先直接載入商品（顧客立即看到商品、價格與規格，完全不卡冷啟動！）
       await loadProduct(productId);
+      hideLoading(); // 確保遮罩完全關閉
 
       // 背景向後端同步身分紀錄（完全靜默非阻塞，絕不蓋住畫面）
       syncIdentityInBackground(idToken);

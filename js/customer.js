@@ -37,19 +37,13 @@ async function loadProduct(productId) {
 }
 
 function renderProductPage(product) {
+  hideLoading();
   const app = document.getElementById('app');
   const isOpen = product.status === 'OPEN';
+  const stageInfo = getProductStageInfo(product.status);
 
-  let statusText = '尚未開始';
-  let statusClass = 'status-draft';
-
-  if (product.status === 'OPEN') {
-    statusText = '訂購中';
-    statusClass = 'status-open';
-  } else if (product.status === 'CLOSED') {
-    statusText = '已截止';
-    statusClass = 'status-closed';
-  }
+  let statusText = stageInfo.label;
+  let statusClass = isOpen ? 'status-open' : 'status-closed';
 
   const maxQtyText = product.maxQty > 0
     ? `最多 ${product.maxQty} 件`
@@ -60,9 +54,23 @@ function renderProductPage(product) {
       ${renderCustomerUserCard()}
 
       <div class="card">
-        <div class="product-status ${statusClass}">
-          ${statusText}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="stage-badge ${stageInfo.badgeClass}" style="font-size:14px;padding:6px 12px;">
+            ${stageInfo.icon} ${stageInfo.label}
+          </div>
+          <span style="font-size:12px;color:#64748b;">${stageInfo.desc}</span>
         </div>
+
+        ${
+          product.status === 'ARRIVED'
+            ? `
+              <div style="background:#dbeafe;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:14px;color:#1e40af;font-size:14px;line-height:1.5;">
+                <strong>🏪 門市到貨公告：</strong><br/>
+                此商品已全數抵達天增門市！請有登記下單的顧客於營業時間前往門市取貨付款。到店時出示 LINE 暱稱即可核對取貨。
+              </div>
+            `
+            : ''
+        }
 
         <h1 class="product-name">
           ${escapeHtml(product.productName)}
@@ -305,22 +313,41 @@ function selectOptionChip(button, optionName, value) {
 }
 
 function renderUnavailableProduct(product) {
-  const isDraft = product.status === 'DRAFT';
-  const title = isDraft ? '團購尚未開始' : '本團購已截止';
-  const icon = isDraft ? '⏳' : '🔒';
+  const stageInfo = getProductStageInfo(product.status);
+  let title = '本團購已截止';
+  let icon = '🔒';
+  let desc = '目前非開放登記期間。';
 
-  const timeText = isDraft
-    ? (product.startAt ? `<div style="color:#777;margin-bottom:20px;">開始時間：${formatDateTime(product.startAt)}</div>` : '')
-    : (product.endAt ? `<div style="color:#777;margin-bottom:20px;">截止時間：${formatDateTime(product.endAt)}</div>` : '');
+  if (product.status === 'ARRIVED') {
+    title = '商品已抵達門市！';
+    icon = '🏪';
+    desc = '有登記下單的顧客，請於營業時間前往門市取貨付款。<br>到店出示 LINE 暱稱即可核對。';
+  } else if (product.status === 'ORDERED') {
+    title = '廠商備貨中';
+    icon = '🚚';
+    desc = '已統整向廠商叫貨中，物流配送中。抵達門市後將開放取貨付款！';
+  } else if (product.status === 'CLOSED_PENDING_ORDER') {
+    title = '登記截止／備貨準備中';
+    icon = '📋';
+    desc = '登記已截止，門市人員正統整數量向廠商叫貨。';
+  } else if (product.status === 'FINISHED') {
+    title = '本檔團購已完結';
+    icon = '🎉';
+    desc = '此商品團購已全數取貨結案。';
+  } else if (product.status === 'DRAFT') {
+    title = '團購尚未開始';
+    icon = '⏳';
+    desc = product.startAt ? `預計開始時間：${formatDateTime(product.startAt)}` : '敬請期待。';
+  }
 
   return `
     <div class="card">
-      <div style="text-align:center;padding:20px 0;">
-        <div style="font-size:42px;margin-bottom:12px;">${icon}</div>
-        <div style="font-size:20px;font-weight:700;margin-bottom:8px;">${title}</div>
-        ${timeText}
-        <button class="button button-secondary" onclick="showMyOrdersPage()">
-          查看我的訂單
+      <div style="text-align:center;padding:24px 10px;">
+        <div style="font-size:44px;margin-bottom:12px;">${icon}</div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px;color:#1e293b;">${title}</div>
+        <div style="color:#64748b;font-size:14px;line-height:1.6;margin-bottom:20px;">${desc}</div>
+        <button class="button button-primary" onclick="showMyOrdersPage()">
+          查看我的訂單進度
         </button>
       </div>
     </div>
@@ -616,8 +643,10 @@ function renderMyOrders(orders) {
   let orderHtml = '';
   if (!orders.length) {
     orderHtml = `
-      <div style="text-align:center;color:#777;padding:30px 10px;">
-        目前沒有訂單
+      <div class="card">
+        <div style="text-align:center;color:#777;padding:30px 10px;">
+          目前沒有訂單紀錄
+        </div>
       </div>
     `;
   } else {
@@ -627,11 +656,43 @@ function renderMyOrders(orders) {
         optionsText = order.options.map(o => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ');
       }
 
+      const prodStage = getProductStageInfo(order.productStatus || 'CLOSED_PENDING_ORDER');
+      const isPending = order.status === ORDER_STATUS.PENDING;
+      const isOpenProduct = order.productStatus === 'OPEN';
+      const isArrived = order.productStatus === 'ARRIVED';
+      const isCompleted = order.status === ORDER_STATUS.COMPLETED;
+      const isCancelled = order.status === ORDER_STATUS.CANCELLED;
+
       return `
-        <div class="card" style="margin-bottom:12px">
-          <div style="font-size:18px;font-weight:700;margin-bottom:10px;">
-            ${escapeHtml(order.productName || '-')}
+        <div class="card" style="margin-bottom:14px;${isCompleted ? 'border-left:4px solid #2563eb;' : (isCancelled ? 'opacity:0.6;' : 'border-left:4px solid #06c755;')}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
+            <div style="font-size:18px;font-weight:700;color:#0f172a;">
+              ${escapeHtml(order.productName || '-')}
+            </div>
+            <div class="stage-badge ${isCompleted ? 'badge-primary' : (isCancelled ? 'badge-dark' : 'badge-warning')}">
+              ${escapeHtml(getOrderStatusLabel(order.status))}
+            </div>
           </div>
+
+          <!-- 實體門市貨態進度標籤 -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:15px;">${prodStage.icon}</span>
+              <span style="font-size:13px;font-weight:600;color:#334155;">門市進度：${escapeHtml(prodStage.label)}</span>
+            </div>
+            <span style="font-size:12px;color:#64748b;">${escapeHtml(prodStage.desc)}</span>
+          </div>
+
+          ${
+            isArrived && !isCompleted && !isCancelled
+              ? `
+                <div style="background:#dbeafe;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;color:#1e40af;font-size:13px;">
+                  🏪 <strong>商品已到店：</strong>請抽空至門市自取付款，告知 LINE 暱稱即可核對取貨！
+                </div>
+              `
+              : ''
+          }
+
           <div class="product-info-row">
             <span class="product-info-label">訂單編號</span>
             <span class="product-info-value">${escapeHtml(order.orderId || '-')}</span>
@@ -647,21 +708,36 @@ function renderMyOrders(orders) {
               : ''
           }
           <div class="product-info-row">
-            <span class="product-info-label">數量</span>
-            <span class="product-info-value">${order.quantity || 0}</span>
+            <span class="product-info-label">訂購數量</span>
+            <span class="product-info-value">${order.quantity || 0} 件</span>
           </div>
           <div class="product-info-row">
-            <span class="product-info-label">金額</span>
-            <span class="product-info-value">NT$ ${formatPrice(order.totalPrice || 0)}</span>
+            <span class="product-info-label">應付總額</span>
+            <span class="product-info-value" style="color:#e11d48;font-weight:700;font-size:16px;">
+              NT$ ${formatPrice(order.totalPrice || 0)}
+            </span>
           </div>
           <div class="product-info-row">
-            <span class="product-info-label">狀態</span>
-            <span class="product-info-value">${getOrderStatusLabel(order.status)}</span>
-          </div>
-          <div class="product-info-row">
-            <span class="product-info-label">訂購時間</span>
+            <span class="product-info-label">登記時間</span>
             <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
           </div>
+
+          <!-- 顧客自主取消按鈕（僅限開團中且待處理之訂單） -->
+          ${
+            isOpenProduct && isPending
+              ? `
+                <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0;text-align:right;">
+                  <button
+                    class="button button-secondary"
+                    style="width:auto;padding:6px 14px;font-size:13px;color:#dc2626;border-color:#fca5a5;"
+                    onclick="cancelCustomerOrder('${escapeJs(order.orderId)}')"
+                  >
+                    取消此訂單
+                  </button>
+                </div>
+              `
+              : ''
+          }
         </div>
       `;
     }).join('');
@@ -672,18 +748,56 @@ function renderMyOrders(orders) {
       ${renderCustomerUserCard()}
 
       <button class="back-button" onclick="location.reload()">
-        ← 返回
+        ← 返回商品頁
       </button>
 
       <div class="header">
         <h1 class="header-title">
           我的訂單
         </h1>
+        <div class="header-subtitle">查看取貨進度與訂單狀態</div>
       </div>
 
       ${orderHtml}
     </div>
   `;
+}
+
+/**
+ * 顧客在開團期間自主取消未叫貨訂單
+ */
+async function cancelCustomerOrder(orderId) {
+  if (!confirm('確定要取消這筆訂單嗎？\n取消後將釋出數量，如欲重新購買需重新登記。')) {
+    return;
+  }
+
+  setLoading('正在取消訂單...');
+
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) {
+      throw new Error('無法取得 LINE ID Token');
+    }
+
+    const result = await apiRequest({
+      action: 'cancelMyOrder',
+      idToken: idToken,
+      orderId: orderId
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('訂單已成功取消！');
+    await showMyOrdersPage();
+
+  } catch (error) {
+    console.error('[CANCEL ORDER]', error);
+    alert('取消失敗：' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
 }
 
 function showNonAdminPage() {

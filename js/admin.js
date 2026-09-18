@@ -404,8 +404,11 @@ function openProductLink() {
 }
 
 /* =================================================
- * 團購清單列表 (所有 ADMIN / OWNER 共管)
+ * 團購清單列表 (實體門市生命週期管線 Pipeline)
  * ================================================= */
+window.adminProductsCache = [];
+window.currentAdminStageFilter = 'ALL';
+
 async function showMyProductsPage() {
   setLoading('正在載入團購清單...');
 
@@ -424,7 +427,8 @@ async function showMyProductsPage() {
       throw new Error(handleApiErrorMessage(result));
     }
 
-    renderMyProductsPage(result.products || []);
+    window.adminProductsCache = result.products || [];
+    renderMyProductsPage(window.adminProductsCache);
 
   } catch (error) {
     console.error('[MY PRODUCTS]', error);
@@ -434,8 +438,35 @@ async function showMyProductsPage() {
   }
 }
 
+function switchProductStageFilter(stage) {
+  window.currentAdminStageFilter = stage;
+  renderMyProductsPage(window.adminProductsCache);
+}
+
 function renderMyProductsPage(products) {
   const app = document.getElementById('app');
+
+  // 計算各階段數量
+  const counts = {
+    ALL: products.length,
+    OPEN: 0,
+    CLOSED_PENDING_ORDER: 0,
+    ORDERED: 0,
+    ARRIVED: 0,
+    FINISHED: 0
+  };
+
+  products.forEach(p => {
+    const s = String(p.status || '').toUpperCase();
+    if (counts[s] !== undefined) {
+      counts[s]++;
+    }
+  });
+
+  const curFilter = window.currentAdminStageFilter || 'ALL';
+  const filteredProducts = curFilter === 'ALL'
+    ? products
+    : products.filter(p => String(p.status || '').toUpperCase() === curFilter);
 
   let html = `
     <div class="container">
@@ -445,45 +476,72 @@ function renderMyProductsPage(products) {
         ← 返回管理首頁
       </button>
 
-      <div class="header">
-        <h1 class="header-title">團購清單</h1>
-        <div class="header-subtitle">查看與管理全部團購商品</div>
+      <div class="header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h1 class="header-title" style="margin:0;">團購管線清單</h1>
+          <div class="header-subtitle">門市生命週期五大階段掌控</div>
+        </div>
+        <button class="button button-primary" style="width:auto;padding:8px 16px;font-size:14px;" onclick="showCreateProductPage()">
+          ➕ 新增團購
+        </button>
+      </div>
+
+      <!-- 生命週期管線 Tab 標籤列 -->
+      <div class="pipeline-tabs">
+        <div class="pipeline-tab ${curFilter === 'ALL' ? 'active' : ''}" onclick="switchProductStageFilter('ALL')">
+          全部 (${counts.ALL})
+        </div>
+        <div class="pipeline-tab ${curFilter === 'OPEN' ? 'active' : ''}" onclick="switchProductStageFilter('OPEN')">
+          🔥 進行中 (${counts.OPEN})
+        </div>
+        <div class="pipeline-tab ${curFilter === 'CLOSED_PENDING_ORDER' ? 'active' : ''}" onclick="switchProductStageFilter('CLOSED_PENDING_ORDER')">
+          📋 待向廠商訂貨 (${counts.CLOSED_PENDING_ORDER})
+        </div>
+        <div class="pipeline-tab ${curFilter === 'ORDERED' ? 'active' : ''}" onclick="switchProductStageFilter('ORDERED')">
+          🚚 廠商備貨中 (${counts.ORDERED})
+        </div>
+        <div class="pipeline-tab ${curFilter === 'ARRIVED' ? 'active' : ''}" onclick="switchProductStageFilter('ARRIVED')">
+          🏪 門市取貨中 (${counts.ARRIVED})
+        </div>
+        <div class="pipeline-tab ${curFilter === 'FINISHED' ? 'active' : ''}" onclick="switchProductStageFilter('FINISHED')">
+          🎉 全數完結 (${counts.FINISHED})
+        </div>
       </div>
   `;
 
-  if (!products.length) {
+  if (!filteredProducts.length) {
     html += `
       <div class="card">
-        <div style="text-align:center;color:#777;padding:30px 10px;">
-          目前沒有團購
+        <div style="text-align:center;color:#777;padding:40px 10px;">
+          <div style="font-size:36px;margin-bottom:8px;">📦</div>
+          此分類目前沒有團購商品
         </div>
       </div>
     `;
   } else {
-    products.forEach(function(product) {
-      let statusText = '尚未開始';
-      let statusClass = 'status-draft';
-
-      if (product.status === 'OPEN') {
-        statusText = '進行中';
-        statusClass = 'status-open';
-      } else if (product.status === 'CLOSED') {
-        statusText = '已截止';
-        statusClass = 'status-closed';
-      }
-
+    filteredProducts.forEach(function(product) {
+      const stageInfo = getProductStageInfo(product.status);
       const limitText = product.maxQty > 0
         ? `${product.totalQuantity || 0} / ${product.maxQty}`
         : `${product.totalQuantity || 0}`;
 
+      const uncollected = product.uncollectedCount !== undefined ? product.uncollectedCount : (product.orderCount || 0);
+      const completed = product.completedCount !== undefined ? product.completedCount : 0;
+
       html += `
-        <div class="card" id="product-card-${escapeHtml(product.productId)}">
-          <div class="product-status ${statusClass}">
-            ${statusText}
+        <div class="card" id="product-card-${escapeHtml(product.productId)}" style="border-left: 4px solid #06c755; margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="stage-badge ${stageInfo.badgeClass}">
+              <span>${stageInfo.icon}</span>
+              <span>${escapeHtml(stageInfo.label)}</span>
+            </div>
+            <div style="font-size:12px;color:#888;">
+              ${escapeHtml(stageInfo.desc)}
+            </div>
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;">
-            <div style="font-size:20px;font-weight:700;">
+            <div style="font-size:19px;font-weight:700;line-height:1.3;">
               ${escapeHtml(product.productName)}
             </div>
             <div style="color:#e11d48;font-size:18px;font-weight:700;white-space:nowrap;">
@@ -491,14 +549,18 @@ function renderMyProductsPage(products) {
             </div>
           </div>
 
-          <div class="product-info-row">
-            <span class="product-info-label">訂單數</span>
-            <span class="product-info-value">${product.orderCount || 0}</span>
-          </div>
-
-          <div class="product-info-row">
-            <span class="product-info-label">已訂總量</span>
-            <span class="product-info-value">${limitText}</span>
+          <!-- 門市統計面板 -->
+          <div class="counter-stat-grid">
+            <div class="counter-stat-box">
+              <div class="counter-stat-label">訂單數 / 訂購總量</div>
+              <div class="counter-stat-num">${product.orderCount || 0} 筆 / ${limitText} 件</div>
+            </div>
+            <div class="counter-stat-box" style="background:#f0fdf4;border-color:#bbf7d0;">
+              <div class="counter-stat-label" style="color:#166534;">門市現場取貨進度</div>
+              <div class="counter-stat-num" style="color:#15803d;">
+                <span style="color:#d97706;">待取 ${uncollected}</span> / <span style="color:#15803d;">已取 ${completed}</span>
+              </div>
+            </div>
           </div>
 
           <div class="product-info-row">
@@ -506,36 +568,32 @@ function renderMyProductsPage(products) {
             <span class="product-info-value">${formatDateTime(product.endAt)}</span>
           </div>
 
-          <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+          <!-- 快捷操作按鈕 -->
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
             <button
               class="button button-primary"
-              style="flex:1;min-width:90px;"
+              style="flex:2;min-width:130px;padding:10px;"
               onclick="showProductOrders('${escapeJs(product.productId)}')"
             >
-              查看訂單
+              📦 訂單管理 & 門市作業
             </button>
 
             <button
               class="button button-secondary"
-              style="flex:1;min-width:90px;"
+              style="flex:1;min-width:75px;padding:10px;"
               onclick="showEditProductPage('${escapeJs(product.productId)}')"
             >
               ✏️ 編輯
             </button>
 
-            ${
-              product.status !== 'CLOSED'
-                ? `
-                  <button
-                    class="button button-secondary"
-                    style="flex:1;min-width:90px;"
-                    onclick="closeProduct('${escapeJs(product.productId)}', '${escapeJs(product.productName)}')"
-                  >
-                    提前關閉
-                  </button>
-                `
-                : ''
-            }
+            <button
+              class="button button-secondary"
+              style="min-width:50px;padding:10px;color:#dc2626;"
+              onclick="archiveProduct('${escapeJs(product.productId)}', '${escapeJs(product.productName)}')"
+              title="封存/刪除團購"
+            >
+              🗑️
+            </button>
           </div>
         </div>
       `;
@@ -547,8 +605,12 @@ function renderMyProductsPage(products) {
 }
 
 /* =================================================
- * 團購訂單明細與狀態更新 (含平滑局部更新)
+ * 團購訂單明細與門市取貨核銷作業 (包含生命週期推進)
  * ================================================= */
+window.currentProductData = null;
+window.currentProductOrders = [];
+window.currentOrderFilterStatus = 'ALL';
+
 async function showProductOrders(productId) {
   if (!productId) {
     alert('缺少商品編號');
@@ -556,7 +618,7 @@ async function showProductOrders(productId) {
   }
 
   window.currentProductId = productId;
-  setLoading('正在載入團購訂單...');
+  setLoading('正在載入團購訂單與進度...');
 
   try {
     const idToken = liff.getIDToken();
@@ -591,167 +653,429 @@ function renderProductOrders(result) {
   const orders = result.orders || [];
   const stats = result.stats || {};
 
+  window.currentProductData = product;
+  window.currentProductOrders = orders;
+
+  const stageInfo = getProductStageInfo(product.status);
+  const curStage = stageInfo.key;
+
+  // 門市取貨統計 (非取消訂單中：COMPLETED 為已取貨，其餘為待取貨)
+  const validOrders = orders.filter(o => o.status !== ORDER_STATUS.CANCELLED);
+  const completedOrders = validOrders.filter(o => o.status === ORDER_STATUS.COMPLETED);
+  const uncollectedOrders = validOrders.filter(o => o.status !== ORDER_STATUS.COMPLETED);
+
+  // 計算廠商叫貨彙總 (按規格 option 統計件數)
+  const optionTallyMap = {};
+  let totalValidQuantity = 0;
+  validOrders.forEach(order => {
+    const qty = Number(order.quantity) || 1;
+    totalValidQuantity += qty;
+    let optStr = '基本款';
+    if (Array.isArray(order.options) && order.options.length > 0) {
+      optStr = order.options.map(o => `${o.name}: ${o.value}`).join(' / ');
+    } else if (typeof order.options === 'string' && order.options.trim()) {
+      optStr = order.options;
+    }
+    optionTallyMap[optStr] = (optionTallyMap[optStr] || 0) + qty;
+  });
+
   let html = `
     <div class="container">
       ${renderUserCard()}
 
       <button class="back-button" onclick="showMyProductsPage()">
-        ← 返回團購清單
+        ← 返回團購管線清單
       </button>
 
-      <div class="header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <!-- 頂部商品標題與編輯按鈕 -->
+      <div class="header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
         <div>
-          <h1 class="header-title" style="margin:0;">團購訂單</h1>
-          <div class="header-subtitle">${escapeHtml(product.productName || '')}</div>
+          <h1 class="header-title" style="margin:0;font-size:22px;">${escapeHtml(product.productName || '')}</h1>
+          <div class="header-subtitle" style="margin-top:4px;">單價：NT$ ${formatPrice(product.price)}</div>
         </div>
-        <button
-          class="button button-secondary"
-          style="width:auto;padding:8px 16px;font-size:14px;"
-          onclick="showEditProductPage('${escapeJs(product.productId || window.currentProductId)}')"
-        >
-          ✏️ 修改商品
-        </button>
+        <div style="display:flex;gap:6px;">
+          <button
+            class="button button-secondary"
+            style="width:auto;padding:6px 12px;font-size:13px;"
+            onclick="showEditProductPage('${escapeJs(product.productId || window.currentProductId)}')"
+          >
+            ✏️ 編輯商品
+          </button>
+          <button
+            class="button button-secondary"
+            style="width:auto;padding:6px 12px;font-size:13px;"
+            onclick="exportOrdersCSV()"
+          >
+            📥 匯出 CSV
+          </button>
+        </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">訂單統計</div>
-        <div class="product-info-row">
-          <span class="product-info-label">有效訂單數</span>
-          <span class="product-info-value" id="stats-order-count">${stats.orderCount || 0}</span>
+      <!-- 生命週期管線推進控制卡片 -->
+      <div class="card" style="background:#f8fafc;border:2px solid #e2e8f0;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="stage-badge ${stageInfo.badgeClass}" style="font-size:14px;padding:6px 12px;">
+              ${stageInfo.icon} ${stageInfo.label}
+            </div>
+            <span style="font-size:13px;color:#64748b;">${stageInfo.desc}</span>
+          </div>
+
+          <!-- 手動切換階段選單 -->
+          <div>
+            <select
+              class="form-select"
+              style="padding:5px 8px;font-size:12px;width:auto;display:inline-block;"
+              onchange="advanceProductStage('${escapeJs(product.productId)}', this.value)"
+            >
+              <option value="OPEN" ${curStage === 'OPEN' ? 'selected' : ''}>🔥 階段1: 進行中</option>
+              <option value="CLOSED_PENDING_ORDER" ${curStage === 'CLOSED_PENDING_ORDER' ? 'selected' : ''}>📋 階段2: 待向廠商訂貨</option>
+              <option value="ORDERED" ${curStage === 'ORDERED' ? 'selected' : ''}>🚚 階段3: 廠商備貨中</option>
+              <option value="ARRIVED" ${curStage === 'ARRIVED' ? 'selected' : ''}>🏪 階段4: 門市取貨中</option>
+              <option value="FINISHED" ${curStage === 'FINISHED' ? 'selected' : ''}>🎉 階段5: 全數完結</option>
+            </select>
+          </div>
         </div>
-        <div class="product-info-row">
-          <span class="product-info-label">訂購總數量</span>
-          <span class="product-info-value" id="stats-total-quantity">${stats.totalQuantity || 0}</span>
-        </div>
-        <div class="product-info-row">
-          <span class="product-info-label">訂購總金額</span>
-          <span class="product-info-value" id="stats-total-amount">NT$ ${formatPrice(stats.totalAmount || 0)}</span>
+
+        <!-- 依當前階段推薦的一鍵推進按鈕 -->
+        <div>
+          ${renderStageActionButton(product.productId, curStage)}
         </div>
       </div>
+
+      <!-- 廠商叫貨彙總清單 (Stage 2 叫貨核對必備) -->
+      <div class="card" style="margin-bottom:16px;border-left:4px solid #f59e0b;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;font-size:16px;">📋 廠商叫貨彙總單 (${totalValidQuantity} 件)</div>
+          <button
+            class="quick-action-btn btn-amber"
+            onclick="copyVendorTallyText()"
+          >
+            📋 一鍵複製叫貨單
+          </button>
+        </div>
+
+        <div style="background:#fff;border-radius:8px;padding:12px;border:1px solid #fed7aa;font-size:14px;">
+          ${
+            Object.keys(optionTallyMap).length === 0
+              ? '<div style="color:#888;">目前尚無有效訂單可叫貨</div>'
+              : Object.entries(optionTallyMap).map(([opt, qty]) => `
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #fed7aa;">
+                  <span style="font-weight:600;color:#1e293b;">• ${escapeHtml(opt)}</span>
+                  <span style="font-weight:700;color:#d97706;">${qty} 件</span>
+                </div>
+              `).join('')
+          }
+          <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:700;color:#b45309;">
+            <span>合計總量</span>
+            <span>${totalValidQuantity} 件 (有效訂單 ${validOrders.length} 筆)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 實體門市現場核銷工具卡 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="font-size:16px;margin-bottom:10px;">🏪 門市現場核銷與催單</div>
+
+        <div class="counter-stat-grid">
+          <div class="counter-stat-box" style="background:#fef3c7;border-color:#fde68a;">
+            <div class="counter-stat-label" style="color:#b45309;">待顧客取貨付款</div>
+            <div class="counter-stat-num" style="color:#b45309;" id="count-uncollected">${uncollectedOrders.length} 筆</div>
+          </div>
+          <div class="counter-stat-box" style="background:#dcfce7;border-color:#bbf7d0;">
+            <div class="counter-stat-label" style="color:#15803d;">已到店完成核銷</div>
+            <div class="counter-stat-num" style="color:#15803d;" id="count-completed">${completedOrders.length} 筆</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button
+            class="quick-action-btn btn-blue"
+            style="flex:1;min-width:150px;justify-content:center;padding:10px;"
+            onclick="copyUncollectedNoticeText()"
+          >
+            📢 一鍵複製未取貨催單文案
+          </button>
+        </div>
+      </div>
+
+      <!-- 訂單搜尋與即時篩選區 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="orderSearchInput"
+            class="form-input"
+            placeholder="🔍 快速搜尋顧客 LINE 名稱 / 訂單號 / 規格..."
+            oninput="filterOrdersList()"
+            style="font-size:15px;padding:10px 14px;"
+          />
+        </div>
+
+        <!-- 訂單狀態篩選按鈕列 -->
+        <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
+          <button class="quick-action-btn btn-gray active" id="chip-ALL" onclick="setOrderFilterStatus('ALL')">
+            全部 (${orders.length})
+          </button>
+          <button class="quick-action-btn btn-gray" id="chip-UNCOLLECTED" onclick="setOrderFilterStatus('UNCOLLECTED')">
+            待取貨 (${uncollectedOrders.length})
+          </button>
+          <button class="quick-action-btn btn-gray" id="chip-COMPLETED" onclick="setOrderFilterStatus('COMPLETED')">
+            已取貨 (${completedOrders.length})
+          </button>
+          <button class="quick-action-btn btn-gray" id="chip-CANCELLED" onclick="setOrderFilterStatus('CANCELLED')">
+            已取消 (${orders.length - validOrders.length})
+          </button>
+        </div>
+      </div>
+
+      <!-- 訂單清單卡片容器 -->
+      <div id="ordersCardsContainer">
+        ${renderOrderCardsHtml(orders)}
+      </div>
+    </div>
   `;
 
+  app.innerHTML = html;
+}
+
+function renderStageActionButton(productId, curStage) {
+  switch (curStage) {
+    case 'OPEN':
+      return `
+        <button
+          class="button button-primary"
+          style="background:#f59e0b;border-color:#f59e0b;"
+          onclick="advanceProductStage('${escapeJs(productId)}', 'CLOSED_PENDING_ORDER', '確定要提前截止此團購，並推進至「待向廠商訂貨」階段嗎？')"
+        >
+          ➡️ 截止團購，推進至：待向廠商訂貨
+        </button>
+      `;
+    case 'CLOSED_PENDING_ORDER':
+      return `
+        <button
+          class="button button-primary"
+          style="background:#0284c7;border-color:#0284c7;"
+          onclick="advanceProductStage('${escapeJs(productId)}', 'ORDERED', '確定已統整數量並向廠商下單了嗎？狀態將改為「廠商備貨中」。')"
+        >
+          ➡️ 標記為：已向廠商訂貨 (廠商備貨中)
+        </button>
+      `;
+    case 'ORDERED':
+      return `
+        <button
+          class="button button-primary"
+          style="background:#06c755;border-color:#06c755;"
+          onclick="advanceProductStage('${escapeJs(productId)}', 'ARRIVED', '確定商品已送達門市了嗎？推進後將開放顧客至現場取貨付款！')"
+        >
+          ➡️ 標記為：商品已到門市！開放顧客取貨付款
+        </button>
+      `;
+    case 'ARRIVED':
+      return `
+        <button
+          class="button button-primary"
+          style="background:#4b5563;border-color:#4b5563;"
+          onclick="advanceProductStage('${escapeJs(productId)}', 'FINISHED', '確定顧客皆已全數取貨完畢，要將此檔團購結案歸檔嗎？')"
+        >
+          ➡️ 標記為：全數取貨完結 (結案歸檔)
+        </button>
+      `;
+    case 'FINISHED':
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="color:#15803d;font-weight:600;">🎉 此團購已全部結案完結</span>
+          <button
+            class="button button-secondary"
+            style="width:auto;padding:6px 12px;font-size:13px;"
+            onclick="advanceProductStage('${escapeJs(productId)}', 'ARRIVED', '確定要重新將狀態改回「門市取貨中」嗎？')"
+          >
+            🔄 恢復為門市取貨中
+          </button>
+        </div>
+      `;
+    default:
+      return '';
+  }
+}
+
+function renderOrderCardsHtml(orders) {
   if (!orders.length) {
-    html += `
+    return `
       <div class="card">
         <div style="text-align:center;color:#777;padding:30px 10px;">
           目前還沒有訂單
         </div>
       </div>
     `;
-  } else {
-    orders.forEach(function(order) {
-      let optionsText = '';
-      if (Array.isArray(order.options)) {
-        optionsText = order.options.map(o => `${o.name}: ${o.value}`).join(', ');
-      } else if (typeof order.options === 'object' && order.options !== null) {
-        optionsText = Object.entries(order.options).map(e => `${e[0]}: ${e[1]}`).join(', ');
-      } else {
-        optionsText = String(order.options || '');
-      }
+  }
 
-      html += `
-        <div class="card" id="order-card-${escapeHtml(order.orderId)}">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;">
-            <div style="font-size:18px;font-weight:700;">
-              ${escapeHtml(order.displayName || '未提供名稱')}
+  return orders.map(order => {
+    let optionsText = '';
+    if (Array.isArray(order.options) && order.options.length > 0) {
+      optionsText = order.options.map(o => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ');
+    } else if (typeof order.options === 'object' && order.options !== null) {
+      optionsText = Object.entries(order.options).map(e => `${escapeHtml(e[0])}: ${escapeHtml(e[1])}`).join(' / ');
+    } else {
+      optionsText = escapeHtml(String(order.options || ''));
+    }
+
+    const isCompleted = order.status === ORDER_STATUS.COMPLETED;
+    const isCancelled = order.status === ORDER_STATUS.CANCELLED;
+
+    return `
+      <div
+        class="card order-item-card"
+        id="order-card-${escapeHtml(order.orderId)}"
+        data-order-id="${escapeHtml(order.orderId)}"
+        data-customer-name="${escapeHtml(order.displayName || '').toLowerCase()}"
+        data-status="${escapeHtml(order.status)}"
+        style="margin-bottom:12px;${isCompleted ? 'border-left:4px solid #2563eb;' : (isCancelled ? 'opacity:0.6;' : 'border-left:4px solid #f59e0b;')}"
+      >
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#0f172a;">
+              👤 ${escapeHtml(order.displayName || '未提供名稱')}
             </div>
-            <div
-              id="order-badge-${escapeHtml(order.orderId)}"
-              style="color:#06c755;font-weight:700;font-size:14px;white-space:nowrap;"
-            >
-              ${escapeHtml(getOrderStatusLabel(order.status))}
+            <div style="font-size:12px;color:#94a3b8;">
+              ${escapeHtml(order.orderId || '-')}
             </div>
           </div>
+          <div
+            id="order-badge-${escapeHtml(order.orderId)}"
+            class="stage-badge ${isCompleted ? 'badge-primary' : (isCancelled ? 'badge-dark' : 'badge-warning')}"
+          >
+            ${escapeHtml(getOrderStatusLabel(order.status))}
+          </div>
+        </div>
 
-          <div class="product-info-row">
-            <span class="product-info-label">訂單編號</span>
-            <span class="product-info-value">${escapeHtml(order.orderId || '-')}</span>
+        <div class="product-info-row">
+          <span class="product-info-label">商品規格</span>
+          <span class="product-info-value" style="font-weight:600;color:#06c755;">${optionsText || '基本規格'}</span>
+        </div>
+
+        <div class="product-info-row">
+          <span class="product-info-label">數量 / 金額</span>
+          <span class="product-info-value" style="color:#e11d48;font-weight:700;font-size:16px;">
+            ${order.quantity || 0} 件 (NT$ ${formatPrice(order.totalPrice || 0)})
+          </span>
+        </div>
+
+        <div class="product-info-row">
+          <span class="product-info-label">下單時間</span>
+          <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
+        </div>
+
+        <!-- 門市現場取貨收款一鍵完成按鈕 -->
+        <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div id="quick-action-area-${escapeHtml(order.orderId)}">
+            ${
+              !isCompleted && !isCancelled
+                ? `
+                  <button
+                    class="quick-action-btn btn-green"
+                    style="padding:8px 16px;font-size:14px;"
+                    onclick="quickCompleteOrder('${escapeJs(order.orderId)}')"
+                  >
+                    ✅ 現場取貨收款完成
+                  </button>
+                `
+                : (isCompleted ? '<span style="color:#2563eb;font-weight:600;font-size:13px;">✓ 已取貨付款結清</span>' : '<span style="color:#dc2626;font-size:13px;">已取消</span>')
+            }
           </div>
 
-          <div class="product-info-row">
-            <span class="product-info-label">訂購數量</span>
-            <span class="product-info-value">${order.quantity || 0}</span>
-          </div>
-
-          <div class="product-info-row">
-            <span class="product-info-label">單價</span>
-            <span class="product-info-value">NT$ ${formatPrice(order.unitPrice || 0)}</span>
-          </div>
-
-          <div class="product-info-row">
-            <span class="product-info-label">總金額</span>
-            <span class="product-info-value" style="color:#e11d48;font-weight:700;">
-              NT$ ${formatPrice(order.totalPrice || 0)}
-            </span>
-          </div>
-
-          <div class="product-info-row">
-            <span class="product-info-label">商品規格</span>
-            <span class="product-info-value">${escapeHtml(optionsText || '-')}</span>
-          </div>
-
-          <div class="product-info-row">
-            <span class="product-info-label">下單時間</span>
-            <span class="product-info-value">${formatDateTime(order.createdAt)}</span>
-          </div>
-
-          <div class="order-status-editor">
-            <label class="field-label" style="margin-top:10px;">變更訂單狀態</label>
+          <!-- 細部狀態變更選單 -->
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:12px;color:#888;">變更:</span>
             <select
               class="form-select"
+              style="padding:4px 8px;font-size:12px;width:auto;"
               data-previous-status="${escapeHtml(order.status)}"
               onchange="updateOrderStatus('${escapeJs(order.orderId)}', this.value, this)"
             >
-              <option value="${ORDER_STATUS.PENDING}" ${order.status === ORDER_STATUS.PENDING ? 'selected' : ''}>
-                待處理
-              </option>
-              <option value="${ORDER_STATUS.CONFIRMED}" ${order.status === ORDER_STATUS.CONFIRMED ? 'selected' : ''}>
-                已確認
-              </option>
-              <option value="${ORDER_STATUS.COMPLETED}" ${order.status === ORDER_STATUS.COMPLETED ? 'selected' : ''}>
-                已完成
-              </option>
-              <option value="${ORDER_STATUS.CANCELLED}" ${order.status === ORDER_STATUS.CANCELLED ? 'selected' : ''}>
-                已取消
-              </option>
+              <option value="${ORDER_STATUS.PENDING}" ${order.status === ORDER_STATUS.PENDING ? 'selected' : ''}>待處理</option>
+              <option value="${ORDER_STATUS.CONFIRMED}" ${order.status === ORDER_STATUS.CONFIRMED ? 'selected' : ''}>已確認</option>
+              <option value="${ORDER_STATUS.COMPLETED}" ${order.status === ORDER_STATUS.COMPLETED ? 'selected' : ''}>已完成</option>
+              <option value="${ORDER_STATUS.CANCELLED}" ${order.status === ORDER_STATUS.CANCELLED ? 'selected' : ''}>已取消</option>
             </select>
           </div>
         </div>
-      `;
-    });
-  }
-
-  html += `</div>`;
-  app.innerHTML = html;
+      </div>
+    `;
+  }).join('');
 }
 
-/**
- * 更新訂單狀態 (平滑原地更新，避免全頁反覆閃爍重新抓取)
- */
-async function updateOrderStatus(orderId, status, selectElement) {
-  if (!orderId || !status) {
-    alert('缺少訂單編號或訂單狀態');
-    return;
-  }
+/* =================================================
+ * 門市訂單搜尋與動態篩選
+ * ================================================= */
+function setOrderFilterStatus(status) {
+  window.currentOrderFilterStatus = status;
 
-  const normalizedStatus = String(status).trim().toUpperCase();
-  const statusLabel = getOrderStatusLabel(normalizedStatus);
-
-  const confirmed = confirm('確定要將此訂單狀態改為「' + statusLabel + '」嗎？');
-
-  /* ---------- 取消：原地恢復舊選取值，免去整個頁面重新載入 ---------- */
-  if (!confirmed) {
-    if (selectElement && selectElement.dataset && selectElement.dataset.previousStatus) {
-      selectElement.value = selectElement.dataset.previousStatus;
+  // 更新按鈕高亮狀態
+  ['ALL', 'UNCOLLECTED', 'COMPLETED', 'CANCELLED'].forEach(s => {
+    const chip = document.getElementById(`chip-${s}`);
+    if (chip) {
+      if (s === status) {
+        chip.classList.add('active', 'btn-green');
+        chip.classList.remove('btn-gray');
+      } else {
+        chip.classList.remove('active', 'btn-green');
+        chip.classList.add('btn-gray');
+      }
     }
+  });
+
+  filterOrdersList();
+}
+
+function filterOrdersList() {
+  const searchInput = document.getElementById('orderSearchInput');
+  const keyword = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  const filterStatus = window.currentOrderFilterStatus || 'ALL';
+
+  const cards = document.querySelectorAll('.order-item-card');
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const orderId = (card.getAttribute('data-order-id') || '').toLowerCase();
+    const customerName = (card.getAttribute('data-customer-name') || '').toLowerCase();
+    const textContent = card.textContent.toLowerCase();
+    const status = card.getAttribute('data-status') || '';
+
+    // 關鍵字搜尋比對
+    const matchesKeyword = !keyword ||
+      customerName.includes(keyword) ||
+      orderId.includes(keyword) ||
+      textContent.includes(keyword);
+
+    // 狀態篩選比對
+    let matchesStatus = true;
+    if (filterStatus === 'UNCOLLECTED') {
+      matchesStatus = (status !== ORDER_STATUS.COMPLETED && status !== ORDER_STATUS.CANCELLED);
+    } else if (filterStatus === 'COMPLETED') {
+      matchesStatus = (status === ORDER_STATUS.COMPLETED);
+    } else if (filterStatus === 'CANCELLED') {
+      matchesStatus = (status === ORDER_STATUS.CANCELLED);
+    }
+
+    if (matchesKeyword && matchesStatus) {
+      card.style.display = 'block';
+      visibleCount++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+/* =================================================
+ * 實體門市作業工具：一鍵完成核銷
+ * ================================================= */
+async function quickCompleteOrder(orderId) {
+  if (!confirm('確認已收取現金並將商品交付給客人核銷完成？')) {
     return;
   }
 
-  if (selectElement) {
-    selectElement.disabled = true;
-  }
-
-  setLoading('正在更新訂單狀態...');
+  setLoading('正在完成取貨核銷...');
 
   try {
     const idToken = liff.getIDToken();
@@ -763,62 +1087,67 @@ async function updateOrderStatus(orderId, status, selectElement) {
       action: 'updateOrderStatus',
       idToken: idToken,
       orderId: orderId,
-      status: normalizedStatus
+      status: ORDER_STATUS.COMPLETED
     });
 
     if (!result.success) {
       throw new Error(handleApiErrorMessage(result));
     }
 
-    // 局部平滑更新 UI
-    if (selectElement) {
-      selectElement.disabled = false;
-      selectElement.dataset.previousStatus = normalizedStatus;
-      selectElement.value = normalizedStatus;
+    // 找到記憶體中此訂單並更新
+    if (Array.isArray(window.currentProductOrders)) {
+      const ord = window.currentProductOrders.find(o => o.orderId === orderId);
+      if (ord) ord.status = ORDER_STATUS.COMPLETED;
+    }
+
+    // 局部平滑更新卡片外觀
+    const card = document.getElementById(`order-card-${orderId}`);
+    if (card) {
+      card.setAttribute('data-status', ORDER_STATUS.COMPLETED);
+      card.style.borderLeft = '4px solid #2563eb';
     }
 
     const badge = document.getElementById(`order-badge-${orderId}`);
     if (badge) {
-      badge.textContent = getOrderStatusLabel(normalizedStatus);
-      if (normalizedStatus === ORDER_STATUS.CANCELLED) {
-        badge.style.color = '#dc2626';
-      } else if (normalizedStatus === ORDER_STATUS.COMPLETED) {
-        badge.style.color = '#2563eb';
-      } else {
-        badge.style.color = '#06c755';
-      }
+      badge.textContent = '已完成';
+      badge.className = 'stage-badge badge-primary';
     }
 
-    hideLoading();
-    alert('訂單狀態已更新為「' + statusLabel + '」');
+    const actionArea = document.getElementById(`quick-action-area-${orderId}`);
+    if (actionArea) {
+      actionArea.innerHTML = '<span style="color:#2563eb;font-weight:600;font-size:13px;">✓ 已取貨付款結清</span>';
+    }
+
+    // 更新計數器數字
+    const uncollectedEl = document.getElementById('count-uncollected');
+    const completedEl = document.getElementById('count-completed');
+    if (uncollectedEl && completedEl) {
+      const valid = window.currentProductOrders.filter(o => o.status !== ORDER_STATUS.CANCELLED);
+      const done = valid.filter(o => o.status === ORDER_STATUS.COMPLETED).length;
+      const wait = valid.length - done;
+      uncollectedEl.textContent = `${wait} 筆`;
+      completedEl.textContent = `${done} 筆`;
+    }
+
+    alert('✅ 取貨收款核銷完成！');
 
   } catch (error) {
-    console.error('[UPDATE ORDER STATUS Error]', error);
+    console.error('[QUICK COMPLETE]', error);
+    alert('更新失敗：' + handleApiErrorMessage(error));
+  } finally {
     hideLoading();
-
-    if (selectElement) {
-      selectElement.disabled = false;
-      if (selectElement.dataset && selectElement.dataset.previousStatus) {
-        selectElement.value = selectElement.dataset.previousStatus;
-      }
-    }
-
-    alert('更新訂單狀態失敗：\n' + handleApiErrorMessage(error));
   }
 }
 
 /* =================================================
- * 提前關閉團購
+ * 推進團購商品生命週期階段
  * ================================================= */
-async function closeProduct(productId, productName) {
-  const confirmed = confirm(
-    '確定要關閉「' + productName + '」嗎？\n\n' +
-    '關閉後將無法再接受新的訂單。'
-  );
+async function advanceProductStage(productId, nextStage, promptMsg) {
+  if (promptMsg && !confirm(promptMsg)) {
+    return;
+  }
 
-  if (!confirmed) return;
-
-  setLoading('正在關閉團購...');
+  setLoading('正在推進團購階段...');
 
   try {
     const idToken = liff.getIDToken();
@@ -827,7 +1156,49 @@ async function closeProduct(productId, productName) {
     }
 
     const result = await apiRequest({
-      action: 'closeProduct',
+      action: 'updateProductStage',
+      idToken: idToken,
+      productId: productId,
+      stage: nextStage
+    });
+
+    if (!result.success) {
+      throw new Error(handleApiErrorMessage(result));
+    }
+
+    alert('團購階段已更新為：「' + getProductStageInfo(nextStage).label + '」');
+    await showProductOrders(productId);
+
+  } catch (error) {
+    console.error('[ADVANCE STAGE]', error);
+    alert('推進階段失敗：' + handleApiErrorMessage(error));
+  } finally {
+    hideLoading();
+  }
+}
+
+/* =================================================
+ * 封存／刪除團購
+ * ================================================= */
+async function archiveProduct(productId, productName) {
+  const ok = confirm(
+    `確定要封存「${productName}」嗎？\n\n` +
+    '封存後此團購將從前台與後台清單中隱藏。\n' +
+    '原先的訂單與資料仍會完整保留在 Google 試算表中備查。'
+  );
+
+  if (!ok) return;
+
+  setLoading('正在封存團購...');
+
+  try {
+    const idToken = liff.getIDToken();
+    if (!idToken) {
+      throw new Error('無法取得 LINE ID Token');
+    }
+
+    const result = await apiRequest({
+      action: 'deleteProduct',
       idToken: idToken,
       productId: productId
     });
@@ -836,15 +1207,153 @@ async function closeProduct(productId, productName) {
       throw new Error(handleApiErrorMessage(result));
     }
 
-    alert('團購已關閉');
+    alert('團購已封存');
     await showMyProductsPage();
 
   } catch (error) {
-    console.error('[CLOSE PRODUCT]', error);
-    alert('關閉失敗：' + handleApiErrorMessage(error));
+    console.error('[ARCHIVE PRODUCT]', error);
+    alert('封存失敗：' + handleApiErrorMessage(error));
   } finally {
     hideLoading();
   }
+}
+
+/* =================================================
+ * 門市作業工具：一鍵複製廠商叫貨單
+ * ================================================= */
+async function copyVendorTallyText() {
+  const product = window.currentProductData;
+  const orders = window.currentProductOrders || [];
+
+  if (!product) {
+    alert('找不到商品資訊');
+    return;
+  }
+
+  const validOrders = orders.filter(o => o.status !== ORDER_STATUS.CANCELLED);
+  if (!validOrders.length) {
+    alert('目前沒有有效訂單可叫貨');
+    return;
+  }
+
+  const tallyMap = {};
+  let totalUnits = 0;
+  validOrders.forEach(o => {
+    const qty = Number(o.quantity) || 1;
+    totalUnits += qty;
+    let optStr = '基本規格';
+    if (Array.isArray(o.options) && o.options.length > 0) {
+      optStr = o.options.map(x => `${x.name}: ${x.value}`).join(' / ');
+    } else if (typeof o.options === 'string' && o.options.trim()) {
+      optStr = o.options;
+    }
+    tallyMap[optStr] = (tallyMap[optStr] || 0) + qty;
+  });
+
+  const lines = [
+    `【天增團購 - 廠商叫貨單】`,
+    `📦 商品：${product.productName}`,
+    `💰 團購售價：NT$ ${formatPrice(product.price)}`,
+    `📊 訂單總筆數：${validOrders.length} 筆`,
+    `📦 叫貨總件數：${totalUnits} 件`,
+    `=========================`,
+    `規格叫貨明細：`
+  ];
+
+  Object.entries(tallyMap).forEach(([opt, qty]) => {
+    lines.push(`• ${opt}：${qty} 件`);
+  });
+
+  lines.push(`=========================`);
+  lines.push(`叫貨統整時間：${formatDateTime(new Date())}`);
+
+  const text = lines.join('\n');
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('✅ 廠商叫貨單已成功複製到剪貼簿！\n可直接開啟 LINE 貼給廠商叫貨。');
+  } catch (e) {
+    prompt('複製失敗，請手動複製下方文字：', text);
+  }
+}
+
+/* =================================================
+ * 門市作業工具：一鍵複製未取貨催單文案
+ * ================================================= */
+async function copyUncollectedNoticeText() {
+  const product = window.currentProductData;
+  if (!product) {
+    alert('找不到商品資訊');
+    return;
+  }
+
+  const text =
+`【天增團購 - 門市到貨取貨提醒 🏪】
+
+親愛的顧客您好：
+您在天增團購登記訂購的「${product.productName}」已經抵達門市囉！
+
+歡迎於營業時間前往門市取貨付款。
+到店取貨時，請直接告知門市人員您的 LINE 暱稱即可核對取貨。
+
+感謝您的支持與配合！😊`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('✅ 到貨取貨提醒已複製到剪貼簿！\n可貼至 LINE 官方帳號群發或直接私訊通知顧客。');
+  } catch (e) {
+    prompt('複製失敗，請手動複製下方文字：', text);
+  }
+}
+
+/* =================================================
+ * 門市作業工具：匯出 CSV 訂單名單
+ * ================================================= */
+function exportOrdersCSV() {
+  const product = window.currentProductData;
+  const orders = window.currentProductOrders || [];
+
+  if (!orders.length) {
+    alert('目前沒有訂單可匯出');
+    return;
+  }
+
+  const bom = '\uFEFF';
+  let csv = bom + '訂單編號,下單時間,顧客名稱,商品規格,訂購數量,單價,總金額,訂單狀態\r\n';
+
+  orders.forEach(o => {
+    let optStr = '';
+    if (Array.isArray(o.options) && o.options.length > 0) {
+      optStr = o.options.map(x => `${x.name}: ${x.value}`).join(' / ');
+    } else if (typeof o.options === 'string') {
+      optStr = o.options;
+    }
+
+    const row = [
+      o.orderId || '',
+      formatDateTime(o.createdAt),
+      o.displayName || '',
+      optStr,
+      o.quantity || 0,
+      o.unitPrice || 0,
+      o.totalPrice || 0,
+      getOrderStatusLabel(o.status)
+    ];
+
+    const escapedRow = row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    csv += escapedRow + '\r\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const prodName = (product?.productName || '團購').replace(/[\/\\:*?"<>|]/g, '_');
+  a.download = `天增團購_${prodName}_訂單清單.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function showAllOrdersPage() {
@@ -1114,10 +1623,10 @@ function createOptionRowHTML(name, valuesStr, idx) {
         >
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;">
           <span style="font-size:11px;color:#6b7280;">快速填入範例：</span>
-          <button type="button" onclick="appendOptionSample(this, 'A ($390), B ($420)')" style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:11px;padding:2px 8px;cursor:pointer;">
+          <button type="button" onclick="appendOptionSample(this, '3層30cm ($390), 3層40cm ($420)')" style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;color:#0284c7;font-size:11px;padding:2px 8px;cursor:pointer;">
             不同尺寸不同價 ($390)
           </button>
-          <button type="button" onclick="appendOptionSample(this, 'A, B (+$20)')" style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;color:#b45309;font-size:11px;padding:2px 8px;cursor:pointer;">
+          <button type="button" onclick="appendOptionSample(this, '一般包裝, 禮盒包裝 (+$20)')" style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;color:#b45309;font-size:11px;padding:2px 8px;cursor:pointer;">
             加價購 (+$20)
           </button>
           <button type="button" onclick="appendOptionSample(this, '黑, 米白, 卡其')" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;color:#4b5563;font-size:11px;padding:2px 8px;cursor:pointer;">

@@ -128,3 +128,65 @@ function handleApiErrorMessage(resultOrError) {
 
   return errorMessages[errorKey] || resultOrError.message || String(errorKey);
 }
+
+function getProductStageInfo(stage) {
+  const s = String(stage || '').trim().toUpperCase();
+  switch (s) {
+    case 'OPEN':
+      return {
+        key: 'OPEN',
+        label: '進行中',
+        badgeClass: 'badge-success',
+        icon: '🔥',
+        desc: '顧客下單登記中'
+      };
+    case 'CLOSED_PENDING_ORDER':
+      return {
+        key: 'CLOSED_PENDING_ORDER',
+        label: '待向廠商訂貨',
+        badgeClass: 'badge-warning',
+        icon: '📋',
+        desc: '已截止，請統整數量向廠商叫貨'
+      };
+    case 'ORDERED':
+      return {
+        key: 'ORDERED',
+        label: '廠商備貨中',
+        badgeClass: 'badge-info',
+        icon: '🚚',
+        desc: '已向廠商下單，物流配送中'
+      };
+    case 'ARRIVED':
+      return {
+        key: 'ARRIVED',
+        label: '商品已到店／取貨中',
+        badgeClass: 'badge-primary',
+        icon: '🏪',
+        desc: '商品已到門市，可現場核銷取貨'
+      };
+    case 'FINISHED':
+      return {
+        key: 'FINISHED',
+        label: '全數取貨完結',
+        badgeClass: 'badge-secondary',
+        icon: '🎉',
+        desc: '此檔團購已全部取貨結案'
+      };
+    case 'ARCHIVED':
+      return {
+        key: 'ARCHIVED',
+        label: '已封存',
+        badgeClass: 'badge-dark',
+        icon: '🗑️',
+        desc: '團購已被封存或刪除'
+      };
+    default:
+      return {
+        key: 'UNKNOWN',
+        label: stage || '進行中',
+        badgeClass: 'badge-secondary',
+        icon: '📦',
+        desc: ''
+      };
+  }
+}

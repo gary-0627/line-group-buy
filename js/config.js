@@ -19,6 +19,17 @@ const ORDER_STATUS = {
   CANCELLED: 'CANCELLED'
 };
 
+// 實體門市商品生命週期階段
+const PRODUCT_STAGE = {
+  DRAFT: 'DRAFT',
+  OPEN: 'OPEN',
+  CLOSED_PENDING_ORDER: 'CLOSED_PENDING_ORDER',
+  ORDERED: 'ORDERED',
+  ARRIVED: 'ARRIVED',
+  FINISHED: 'FINISHED',
+  ARCHIVED: 'ARCHIVED'
+};
+
 // 全域執行時期狀態
 let currentUser = null;
 let currentAdmin = null;
